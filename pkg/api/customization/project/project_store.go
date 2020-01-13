@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
@@ -51,6 +52,11 @@ func (s *projectStore) Create(apiContext *types.APIContext, schema *types.Schema
 	}
 
 	if err := s.validateResourceQuota(apiContext, data, ""); err != nil {
+		return nil, err
+	}
+
+	// PANDARIA
+	if err := s.validateProjectDisplayName(apiContext, data, ""); err != nil {
 		return nil, err
 	}
 
@@ -100,6 +106,36 @@ func (s *projectStore) createProjectAnnotation() (string, error) {
 	}
 
 	return string(d), nil
+}
+
+func (s *projectStore) validateProjectDisplayName(apiContext *types.APIContext, data map[string]interface{}, id string) error {
+	if _, ok := data["namespaceId"]; !ok {
+		return errors.New("can not find project's namespace")
+	}
+
+	if _, ok := data["name"]; !ok {
+		return errors.New("can not find project's name")
+	}
+
+	namespace := data["namespaceId"].(string)
+	name := data["name"].(string)
+
+	projects, err := s.projectLister.List(namespace, labels.Everything())
+	if err != nil {
+		return err
+	}
+
+	if len(projects) < 1 {
+		return nil
+	}
+
+	for _, project := range projects {
+		if project.Spec.DisplayName == name {
+			return httperror.NewAPIError(httperror.Conflict, "duplicate project name")
+		}
+	}
+
+	return nil
 }
 
 func (s *projectStore) validateResourceQuota(apiContext *types.APIContext, data map[string]interface{}, id string) error {
