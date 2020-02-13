@@ -146,6 +146,7 @@ func (l *Lifecycle) Updated(obj *v3.App) (runtime.Object, error) {
 				* The user caused the action by way of clicking either upgrade or rollback
 		*/
 		if isSame(obj, currentRevision) && !v3.AppConditionForceUpgrade.IsUnknown(obj) &&
+			!v3.AppConditionInstalled.IsUnknown(obj) &&
 			!v3.AppConditionUserTriggeredAction.IsTrue(obj) {
 			if !v3.AppConditionForceUpgrade.IsTrue(obj) {
 				v3.AppConditionForceUpgrade.True(obj)

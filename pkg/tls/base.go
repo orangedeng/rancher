@@ -63,6 +63,7 @@ func BaseTLSConfig() (*tls.Config, error) {
 		PreferServerCipherSuites: true,
 		MinVersion:               TLSMinVersion,
 		CipherSuites:             TLSCiphers,
+		NextProtos:               []string{"h2", "http/1.1"},
 	}, nil
 }
 

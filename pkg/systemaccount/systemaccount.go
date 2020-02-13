@@ -10,11 +10,13 @@ import (
 	"github.com/rancher/types/user"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
 	clusterOwnerRole           = "cluster-owner"
 	projectMemberRole          = "project-member"
+	GlobalSystemAccountPrefix  = "System account for "
 	ClusterSystemAccountPrefix = "System account for Cluster "
 	ProjectSystemAccountPrefix = "System account for Project "
 )
@@ -22,6 +24,8 @@ const (
 func NewManager(management *config.ManagementContext) *Manager {
 	return &Manager{
 		userManager: management.UserManager,
+		grbs:        management.Management.GlobalRoleBindings(""),
+		grbLister:   management.Management.GlobalRoleBindings("").Controller().Lister(),
 		crtbs:       management.Management.ClusterRoleTemplateBindings(""),
 		crts:        management.Management.ClusterRegistrationTokens(""),
 		prtbs:       management.Management.ProjectRoleTemplateBindings(""),
@@ -34,6 +38,8 @@ func NewManager(management *config.ManagementContext) *Manager {
 func NewManagerFromScale(management *config.ScaledContext) *Manager {
 	return &Manager{
 		userManager: management.UserManager,
+		grbs:        management.Management.GlobalRoleBindings(""),
+		grbLister:   management.Management.GlobalRoleBindings("").Controller().Lister(),
 		crtbs:       management.Management.ClusterRoleTemplateBindings(""),
 		crts:        management.Management.ClusterRegistrationTokens(""),
 		prtbs:       management.Management.ProjectRoleTemplateBindings(""),
@@ -45,12 +51,55 @@ func NewManagerFromScale(management *config.ScaledContext) *Manager {
 
 type Manager struct {
 	userManager user.Manager
+	grbs        v3.GlobalRoleBindingInterface
+	grbLister   v3.GlobalRoleBindingLister
 	crtbs       v3.ClusterRoleTemplateBindingInterface
 	crts        v3.ClusterRegistrationTokenInterface
 	prtbs       v3.ProjectRoleTemplateBindingInterface
 	prtbLister  v3.ProjectRoleTemplateBindingLister
 	tokens      v3.TokenInterface
 	users       v3.UserInterface
+}
+
+// GetGlobalSystemUser returns a system user with the same global role as the inheritFromUser
+func (s *Manager) GetGlobalSystemUser(name string, inheritFromUserID string) (*v3.User, error) {
+	u, err := s.userManager.EnsureUser(fmt.Sprintf("system://%s", name), GlobalSystemAccountPrefix+name)
+	if err != nil {
+		return nil, err
+	}
+
+	bindings, err := s.grbLister.List("", labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	for _, b := range bindings {
+		if b.UserName == inheritFromUserID {
+			bindingName := fmt.Sprintf("%s-%s", u.Name, b.GlobalRoleName)
+			if _, err := s.grbLister.Get("", bindingName); err == nil {
+				// Existed
+				continue
+			}
+			rb := &v3.GlobalRoleBinding{
+				ObjectMeta: v1.ObjectMeta{
+					Name: bindingName,
+				},
+				UserName:       u.Name,
+				GlobalRoleName: b.GlobalRoleName,
+			}
+			if _, err := s.grbs.Create(rb); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return u, nil
+}
+
+func (s *Manager) GetOrCreateSystemGlobalToken(name string, inheritFromUserID string) (string, error) {
+	user, err := s.GetGlobalSystemUser(name, inheritFromUserID)
+	if err != nil {
+		return "", err
+	}
+	return s.userManager.EnsureToken(fmt.Sprintf("%s-%s", name, user.Name), "System token for "+name, name, user.Name)
 }
 
 func (s *Manager) CreateSystemAccount(cluster *v3.Cluster) error {
@@ -170,6 +219,20 @@ func (s *Manager) RemoveSystemAccount(userID string) error {
 	}
 	if err := s.users.Delete(u.Name, &v1.DeleteOptions{}); err != nil && !errors2.IsNotFound(err) && !errors2.IsGone(err) {
 		return err
+	}
+
+	// Remove related globalRoleBindings if there's any
+	bindings, err := s.grbLister.List("", labels.Everything())
+	if err != nil {
+		return err
+	}
+	for _, b := range bindings {
+		if b.UserName != userID {
+			continue
+		}
+		if err := s.grbs.Delete(b.Name, &v1.DeleteOptions{}); err != nil {
+			return err
+		}
 	}
 	return nil
 }

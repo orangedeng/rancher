@@ -33,6 +33,8 @@ var (
 	FirstLogin                        = NewSetting("first-login", "true")
 	GlobalRegistryEnabled             = NewSetting("global-registry-enabled", "false")
 	GithubProxyAPIURL                 = NewSetting("github-proxy-api-url", "https://api.github.com")
+	GlobalMonitoringEnabled           = NewSetting("global-monitoring-enabled", "false")
+	GlobalMonitoringClusterID         = NewSetting("global-monitoring-cluster-id", "")
 	HelmVersion                       = NewSetting("helm-version", "dev")
 	IngressIPDomain                   = NewSetting("ingress-ip-domain", "xip.io")
 	InstallUUID                       = NewSetting("install-uuid", "")

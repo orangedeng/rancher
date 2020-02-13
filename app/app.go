@@ -28,6 +28,7 @@ import (
 	"github.com/rancher/rancher/pkg/tunnelserver"
 	"github.com/rancher/rancher/pkg/wrangler"
 	"github.com/rancher/rancher/server"
+	"github.com/rancher/rancher/server/grpc" // PANDARIA
 	"github.com/rancher/remotedialer"
 	"github.com/rancher/steve/pkg/accesscontrol"
 	"github.com/rancher/steve/pkg/auth"
@@ -73,8 +74,12 @@ func (r *Rancher) ListenAndServe(ctx context.Context) error {
 		return err
 	}
 
+	//PANDARIA: global monitoring
+	grpc.Start(ctx, r.ScaledContext, r.ClusterManager)
+	handler := grpc.NewMultiplexHandler(r.ScaledContext, r.ClusterManager, r.Handler)
+
 	if err := tls.ListenAndServe(ctx, &r.ScaledContext.RESTConfig,
-		r.Handler,
+		handler,
 		r.Config.HTTPSListenPort,
 		r.Config.HTTPListenPort,
 		r.Config.ACMEDomains,
