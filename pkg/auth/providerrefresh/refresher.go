@@ -191,7 +191,9 @@ func (r *refresher) refreshAttributes(attribs *v3.UserAttribute) (*v3.UserAttrib
 		prefix := providerName + "_user://"
 		if providerName == "local" {
 			prefix = "local://"
-		}
+		} else if providerName == "activedirectory" || providerName == "openldap" {
+			prefix = providerName + "_user_uid://"
+		} // PANDARIA: We add a new principal id for AD/LDAP to save unique attribute for login user
 		principalID := ""
 		for _, id := range user.PrincipalIDs {
 			if strings.HasPrefix(id, prefix) {
@@ -199,6 +201,19 @@ func (r *refresher) refreshAttributes(attribs *v3.UserAttribute) (*v3.UserAttrib
 				break
 			}
 		}
+		// PANDARIA: if we don't find new principal id, check for
+		// history principal prefix for AD or openldap
+		if principalID == "" && (providerName == "activedirectory" || providerName == "openldap") {
+			prefix = providerName + "_user://"
+			for _, id := range user.PrincipalIDs {
+				if strings.HasPrefix(id, prefix) {
+					principalID = id
+					break
+				}
+			}
+		}
+		// PANDARIA: end
+
 		newGroupPrincipals := []v3.Principal{}
 
 		// If there is no principalID for the provider, there is no reason to go through the refetch process

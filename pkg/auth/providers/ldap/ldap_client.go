@@ -100,7 +100,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 	var groupPrincipals []v3.Principal
 	var userPrincipal v3.Principal
 	var nonDupGroupPrincipals []v3.Principal
-	var userScope, groupScope string
+	var userScopeType, groupScopeType string // PANDARIA: add unique attribute scope type
 	var nestedGroupPrincipals []v3.Principal
 	var freeipaNonEntrydnApproach bool
 
@@ -132,13 +132,24 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 		return v3.Principal{}, nil, nil
 	}
 
-	userScope = p.userScope
-	groupScope = p.groupScope
+	// PANDARIA: get unique attribute
+	if config.UserUniqueIDAttribute != "" {
+		userScopeType = p.userUIDScope
+	} else {
+		userScopeType = p.userScope
+	}
 
-	user, err := ldap.AttributesToPrincipal(entry.Attributes, result.Entries[0].DN, userScope, p.providerName, config.UserObjectClass, config.UserNameAttribute, config.UserLoginAttribute, config.GroupObjectClass, config.GroupNameAttribute)
+	if config.GroupUniqueIDAttribute != "" {
+		groupScopeType = p.groupUIDScope
+	} else {
+		groupScopeType = p.groupScope
+	}
+
+	user, err := ldap.AttributesToPrincipal(entry, result.Entries[0].DN, userScopeType, p.providerName, config.UserObjectClass, config.UserNameAttribute, config.UserLoginAttribute, config.GroupObjectClass, config.GroupNameAttribute, config.UserUniqueIDAttribute, config.GroupUniqueIDAttribute)
 	if err != nil {
 		return v3.Principal{}, groupPrincipals, err
 	}
+	// PANDARIA: end
 
 	userPrincipal = *user
 	userDN := result.Entries[0].DN
@@ -155,7 +166,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 			query = fmt.Sprintf("(&%v%v)", filter, query)
 			// Pulling user's groups
 			logrus.Debugf("Ldap: Query for pulling user's groups: %v", query)
-			userMemberGroupPrincipals, err := p.searchLdap(query, groupScope, config, lConn)
+			userMemberGroupPrincipals, err := p.searchLdap(query, groupScopeType, config, lConn) // PANDARIA: change scope type
 			groupPrincipals = append(groupPrincipals, userMemberGroupPrincipals...)
 			if err != nil {
 				return userPrincipal, groupPrincipals, err
@@ -177,7 +188,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 
 	if len(groupMemberUserAttribute) > 0 {
 		query := fmt.Sprintf("(&(%v=%v)(%v=%v))", config.GroupMemberMappingAttribute, ldapv2.EscapeFilter(groupMemberUserAttribute[0]), ObjectClass, config.GroupObjectClass)
-		newGroupPrincipals, err := p.searchLdap(query, groupScope, config, lConn)
+		newGroupPrincipals, err := p.searchLdap(query, groupScopeType, config, lConn) // PANDARIA: change scope type
 		//deduplicate groupprincipals get from userMemberAttribute
 		nonDupGroupPrincipals = ldap.FindNonDuplicateBetweenGroupPrincipals(newGroupPrincipals, groupPrincipals, nonDupGroupPrincipals)
 		groupPrincipals = append(groupPrincipals, nonDupGroupPrincipals...)
@@ -194,7 +205,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 		logrus.Debugf("EntryDN attribute not returned, retrieving group membership using the member attribute")
 		// didn't get the entrydn as expected, so use query with member attribute and manually gather nested group
 		query := fmt.Sprintf("(&(%v=%v)(%v=%v))", config.GroupMemberMappingAttribute, ldapv2.EscapeFilter(userDN), ObjectClass, config.GroupObjectClass)
-		groupPrincipals, err = p.searchLdap(query, groupScope, config, lConn)
+		groupPrincipals, err = p.searchLdap(query, groupScopeType, config, lConn) // PANDARIA: change scope type
 		if err != nil {
 			return userPrincipal, groupPrincipals, err
 		}
@@ -202,7 +213,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 		freeipaNonEntrydnApproach = true
 	}
 	// Handle nestedgroups for openldap, filter operationalAttrList already handles nestedgroups for freeipa
-	if (config.NestedGroupMembershipEnabled && groupScope == "openldap_group") || freeipaNonEntrydnApproach {
+	if (config.NestedGroupMembershipEnabled && groupScopeType == "openldap_group") || freeipaNonEntrydnApproach { // PANDARIA: change scope type
 		searchDomain := config.UserSearchBase
 		if config.GroupSearchBase != "" {
 			searchDomain = config.GroupSearchBase
@@ -224,7 +235,7 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 		searchAttributes := []string{config.GroupMemberUserAttribute, config.GroupMemberMappingAttribute, ObjectClass, config.GroupObjectClass, config.UserLoginAttribute,
 			config.GroupNameAttribute, config.GroupSearchAttribute}
 		for _, groupPrincipal := range groupPrincipals {
-			err = ldap.GatherParentGroups(groupPrincipal, searchDomain, groupScope, &commonConfig, lConn, groupMap, &nestedGroupPrincipals, searchAttributes)
+			err = ldap.GatherParentGroups(groupPrincipal, searchDomain, groupScopeType, &commonConfig, lConn, groupMap, &nestedGroupPrincipals, searchAttributes) // PANDARIA: change scope type
 			if err != nil {
 				return userPrincipal, groupPrincipals, nil
 			}
@@ -239,28 +250,8 @@ func (p *ldapProvider) getPrincipalsFromSearchResult(result *ldapv2.SearchResult
 func (p *ldapProvider) getPrincipal(distinguishedName string, scope string, config *v3.LdapConfig, caPool *x509.CertPool) (*v3.Principal, error) {
 	var search *ldapv2.SearchRequest
 	var filter string
-	if (scope != p.userScope) && (scope != p.groupScope) {
+	if (scope != p.userScope) && (scope != p.groupScope) && (scope != p.userUIDScope) && (scope != p.groupUIDScope) { // PANDARIA: Add unique attribute scope
 		return nil, fmt.Errorf("Invalid scope")
-	}
-
-	var attributes []*ldapv2.AttributeTypeAndValue
-	var attribs []*ldapv2.EntryAttribute
-	object, err := ldapv2.ParseDN(distinguishedName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, rdns := range object.RDNs {
-		for _, attr := range rdns.Attributes {
-			attributes = append(attributes, attr)
-			entryAttr := ldapv2.NewEntryAttribute(attr.Type, []string{attr.Value})
-			attribs = append(attribs, entryAttr)
-		}
-	}
-
-	if !ldap.IsType(attribs, scope) && !p.permissionCheck(attribs, config) {
-		logrus.Errorf("Failed to get object %v", distinguishedName)
-		return nil, nil
 	}
 
 	entityType := strings.Split(scope, "_")[1]
@@ -269,6 +260,38 @@ func (p *ldapProvider) getPrincipal(distinguishedName string, scope string, conf
 	} else {
 		filter = fmt.Sprintf("(%v=%v)", ObjectClass, config.GroupObjectClass)
 	}
+
+	// PANDARIA: convert unique attribute to principal
+	var baseDN string
+	if strings.EqualFold(scope, p.userUIDScope) {
+		baseDN = config.UserSearchBase
+		filter = fmt.Sprintf("(&%s(%v=%v))", filter, config.UserUniqueIDAttribute, distinguishedName)
+	} else if strings.EqualFold(scope, p.groupUIDScope) {
+		baseDN = config.UserSearchBase
+		filter = fmt.Sprintf("(&%s(%v=%v))", filter, config.GroupUniqueIDAttribute, distinguishedName)
+	} else {
+		baseDN = distinguishedName
+		var attributes []*ldapv2.AttributeTypeAndValue
+		var attribs []*ldapv2.EntryAttribute
+		object, err := ldapv2.ParseDN(distinguishedName)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, rdns := range object.RDNs {
+			for _, attr := range rdns.Attributes {
+				attributes = append(attributes, attr)
+				entryAttr := ldapv2.NewEntryAttribute(attr.Type, []string{attr.Value})
+				attribs = append(attribs, entryAttr)
+			}
+		}
+
+		if !ldap.IsType(attribs, scope) && !p.permissionCheck(attribs, config) {
+			logrus.Errorf("Failed to get object %v", distinguishedName)
+			return nil, nil
+		}
+	}
+	// PANDARIA: end
 
 	logrus.Debugf("Query for getPrincipal(%v): %v", distinguishedName, filter)
 
@@ -302,17 +325,29 @@ func (p *ldapProvider) getPrincipal(distinguishedName string, scope string, conf
 		return nil, fmt.Errorf("Error in ldap bind: %v", err)
 	}
 
-	if strings.EqualFold("user", entityType) {
+	// PANDARIA: Add unique scope
+	if strings.EqualFold(p.userScope, scope) {
 		search = ldapv2.NewSearchRequest(distinguishedName,
 			ldapv2.ScopeBaseObject, ldapv2.NeverDerefAliases, 0, 0, false,
 			filter,
 			ldap.GetUserSearchAttributesForLDAP(ObjectClass, config), nil)
-	} else {
+	} else if strings.EqualFold(p.groupScope, scope) {
 		search = ldapv2.NewSearchRequest(distinguishedName,
 			ldapv2.ScopeBaseObject, ldapv2.NeverDerefAliases, 0, 0, false,
 			filter,
 			ldap.GetGroupSearchAttributesForLDAP(ObjectClass, config), nil)
+	} else if strings.EqualFold(p.userUIDScope, scope) {
+		search = ldapv2.NewSearchRequest(baseDN,
+			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
+			filter,
+			ldap.GetUserSearchAttributesForLDAP(ObjectClass, config), nil)
+	} else if strings.EqualFold(p.groupUIDScope, scope) {
+		search = ldapv2.NewSearchRequest(baseDN,
+			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
+			filter,
+			ldap.GetGroupSearchAttributesForLDAP(ObjectClass, config), nil)
 	}
+	// PANDARIA: end
 
 	result, err := lConn.Search(search)
 	if err != nil {
@@ -329,13 +364,13 @@ func (p *ldapProvider) getPrincipal(distinguishedName string, scope string, conf
 	}
 
 	entry := result.Entries[0]
-	entryAttributes := entry.Attributes
 
 	if !p.permissionCheck(entry.Attributes, config) {
 		return nil, fmt.Errorf("Permission denied")
 	}
 
-	principal, err := ldap.AttributesToPrincipal(entryAttributes, distinguishedName, scope, p.providerName, config.UserObjectClass, config.UserNameAttribute, config.UserLoginAttribute, config.GroupObjectClass, config.GroupNameAttribute)
+	// PANDARIA: convert principal with unique attribute
+	principal, err := ldap.AttributesToPrincipal(entry, baseDN, scope, p.providerName, config.UserObjectClass, config.UserNameAttribute, config.UserLoginAttribute, config.GroupObjectClass, config.GroupNameAttribute, config.UserUniqueIDAttribute, config.GroupUniqueIDAttribute)
 	if err != nil {
 		return nil, err
 	}
@@ -399,15 +434,26 @@ func (p *ldapProvider) searchGroup(name string, config *v3.LdapConfig, lConn *ld
 func (p *ldapProvider) searchLdap(query string, scope string, config *v3.LdapConfig, lConn *ldapv2.Conn) ([]v3.Principal, error) {
 	var principals []v3.Principal
 	var search *ldapv2.SearchRequest
+	var scopeType string // PANDARIA: Add unique scope
 
 	entityType := strings.Split(scope, "_")[1]
 	searchDomain := config.UserSearchBase
 	if strings.EqualFold("user", entityType) {
+		if config.UserUniqueIDAttribute != "" {
+			scopeType = p.userUIDScope
+		} else {
+			scopeType = scope
+		}
 		search = ldapv2.NewSearchRequest(searchDomain,
 			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
 			query,
 			ldap.GetUserSearchAttributesForLDAP(ObjectClass, config), nil)
 	} else {
+		if config.GroupUniqueIDAttribute != "" {
+			scopeType = p.groupUIDScope
+		} else {
+			scopeType = scope
+		}
 		if config.GroupSearchBase != "" {
 			searchDomain = config.GroupSearchBase
 		}
@@ -436,7 +482,13 @@ func (p *ldapProvider) searchLdap(query string, scope string, config *v3.LdapCon
 		externalID := results.Entries[i].DN
 		entry := results.Entries[i]
 
+		// PANDARIA: don't use new uid principal for shibboleth
+		userUiniqueIDAttribute := config.UserUniqueIDAttribute
+		groupUniqueIDAttribute := config.GroupUniqueIDAttribute
 		if p.samlSearchProvider() {
+			userUiniqueIDAttribute = ""
+			groupUniqueIDAttribute = ""
+			scopeType = scope
 			if strings.EqualFold("user", entityType) {
 				userLoginValues := ldap.GetAttributeValuesByName(entry.Attributes, config.UserLoginAttribute)
 				if len(userLoginValues) > 0 {
@@ -451,15 +503,17 @@ func (p *ldapProvider) searchLdap(query string, scope string, config *v3.LdapCon
 		}
 
 		principal, err := ldap.AttributesToPrincipal(
-			entry.Attributes,
+			entry,
 			externalID,
-			scope,
+			scopeType,
 			p.providerName,
 			config.UserObjectClass,
 			config.UserNameAttribute,
 			config.UserLoginAttribute,
 			config.GroupObjectClass,
-			config.GroupNameAttribute)
+			config.GroupNameAttribute,
+			userUiniqueIDAttribute,
+			groupUniqueIDAttribute)
 		if err != nil {
 			return []v3.Principal{}, err
 		}
@@ -494,22 +548,44 @@ func (p *ldapProvider) RefetchGroupPrincipals(principalID string, secret string)
 		return nil, err
 	}
 
-	distinguishedName, _, err := p.getDNAndScopeFromPrincipalID(principalID)
+	distinguishedName, scope, err := p.getDNAndScopeFromPrincipalID(principalID)
 	if err != nil {
 		return nil, err
 	}
 
-	searchRequest := ldapv2.NewSearchRequest(
-		distinguishedName,
-		ldapv2.ScopeBaseObject,
-		ldapv2.NeverDerefAliases,
-		0,
-		0,
-		false,
-		fmt.Sprintf("(%v=%v)", ObjectClass, config.UserObjectClass),
-		ldap.GetUserSearchAttributesForLDAP(ObjectClass, config),
-		nil,
-	)
+	// PANDARIA: Add unique attribute scope
+	var searchRequest *ldapv2.SearchRequest
+	if strings.EqualFold(p.userUIDScope, scope) {
+		var uidFilter string
+		if config.UserUniqueIDAttribute != "" {
+			uidFilter = fmt.Sprintf("(%v=%v)", config.UserUniqueIDAttribute, distinguishedName)
+		}
+		objectFilter := fmt.Sprintf("(%v=%v)", ObjectClass, config.UserObjectClass)
+		searchRequest = ldapv2.NewSearchRequest(
+			config.UserSearchBase,
+			ldapv2.ScopeWholeSubtree,
+			ldapv2.NeverDerefAliases,
+			0,
+			0,
+			false,
+			fmt.Sprintf("(&%s%s)", objectFilter, uidFilter),
+			ldap.GetUserSearchAttributesForLDAP(ObjectClass, config),
+			nil,
+		)
+	} else {
+		searchRequest = ldapv2.NewSearchRequest(
+			distinguishedName,
+			ldapv2.ScopeBaseObject,
+			ldapv2.NeverDerefAliases,
+			0,
+			0,
+			false,
+			fmt.Sprintf("(%v=%v)", ObjectClass, config.UserObjectClass),
+			ldap.GetUserSearchAttributesForLDAP(ObjectClass, config),
+			nil,
+		)
+	}
+	// PANDARIA: end
 
 	result, err := lConn.Search(searchRequest)
 	if err != nil {

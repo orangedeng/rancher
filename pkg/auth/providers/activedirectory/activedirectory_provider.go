@@ -29,9 +29,11 @@ const (
 	GroupScope        = Name + "_group"
 	ObjectClass       = "objectClass"
 	MemberOfAttribute = "memberOf"
+	UserUIDScope      = UserScope + "_uid"  // PANDARIA: new user principal key, using unique attribute instead of DN
+	GroupUIDScope     = GroupScope + "_uid" // PANDARIA: new group principal key, using unique attribute instead of DN
 )
 
-var scopes = []string{UserScope, GroupScope}
+var scopes = []string{UserScope, GroupScope, UserUIDScope, GroupUIDScope}
 
 type adProvider struct {
 	ctx         context.Context

@@ -58,6 +58,8 @@ type ldapProvider struct {
 	testAndApplyInputType string
 	userScope             string
 	groupScope            string
+	userUIDScope          string // PANDARIA
+	groupUIDScope         string // PANDARIA
 }
 
 func Configure(ctx context.Context, mgmtCtx *config.ScaledContext, userMGR user.Manager, tokenMGR *tokens.Manager, providerName string) common.AuthProvider {
@@ -71,6 +73,8 @@ func Configure(ctx context.Context, mgmtCtx *config.ScaledContext, userMGR user.
 		testAndApplyInputType: testAndApplyInputTypes[providerName],
 		userScope:             providerName + "_user",
 		groupScope:            providerName + "_group",
+		userUIDScope:          providerName + "_user_uid",  // PANDARIA: Add new principal key for user unique attribute
+		groupUIDScope:         providerName + "_group_uid", // PANDARIA: Add new principal key for group unique attribute
 	}
 }
 
@@ -317,16 +321,21 @@ func (p *ldapProvider) samlSearchGetPrincipal(
 
 	var searchRequest *ldapv2.SearchRequest
 	var filter string
+	searchBase := config.UserSearchBase
 	if scope == p.userScope {
 		filter = fmt.Sprintf("(&(%v=%v)(%v=%v))",
 			ObjectClass, config.UserObjectClass, config.UserLoginAttribute, ldapv2.EscapeFilter(externalID))
-		searchRequest = ldapv2.NewSearchRequest(config.UserSearchBase,
+		searchRequest = ldapv2.NewSearchRequest(searchBase,
 			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
 			filter, ldap.GetUserSearchAttributesForLDAP(ObjectClass, config), nil)
 	} else {
+		// if group search base is not set, use user search base as default
+		if config.GroupSearchBase != "" {
+			searchBase = config.GroupSearchBase
+		}
 		filter = fmt.Sprintf("(&(%v=%v)(%v=%v))",
 			ObjectClass, config.GroupObjectClass, config.GroupDNAttribute, ldapv2.EscapeFilter(externalID))
-		searchRequest = ldapv2.NewSearchRequest(config.GroupSearchBase,
+		searchRequest = ldapv2.NewSearchRequest(searchBase,
 			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
 			filter, ldap.GetGroupSearchAttributesForLDAP(ObjectClass, config), nil)
 	}
@@ -343,7 +352,6 @@ func (p *ldapProvider) samlSearchGetPrincipal(
 	}
 
 	entry := result.Entries[0]
-	entryAttributes := entry.Attributes
 
 	if scope == p.userScope {
 		userLoginValues := ldap.GetAttributeValuesByName(entry.Attributes, config.UserLoginAttribute)
@@ -358,7 +366,7 @@ func (p *ldapProvider) samlSearchGetPrincipal(
 	}
 
 	return ldap.AttributesToPrincipal(
-		entryAttributes,
+		entry,
 		externalID,
 		scope,
 		p.providerName,
@@ -366,5 +374,7 @@ func (p *ldapProvider) samlSearchGetPrincipal(
 		config.UserNameAttribute,
 		config.UserLoginAttribute,
 		config.GroupObjectClass,
-		config.GroupNameAttribute)
+		config.GroupNameAttribute,
+		"",
+		"") // PANDARIA: don't use new uid principal for shibboleth principal
 }

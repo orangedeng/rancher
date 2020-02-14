@@ -26,6 +26,7 @@ type ConfigAttributes struct {
 	UserLoginAttribute          string
 	UserNameAttribute           string
 	UserObjectClass             string
+	GroupUniqueIDAttribute      string // PANDARIA: Add group unique attribute
 }
 
 func Connect(config *v3.LdapConfig, caPool *x509.CertPool) (*ldapv2.Conn, error) {
@@ -126,7 +127,8 @@ func GetUserSearchAttributes(memberOfAttribute, ObjectClass string, config *v3.A
 		config.UserObjectClass,
 		config.UserLoginAttribute,
 		config.UserNameAttribute,
-		config.UserEnabledAttribute}
+		config.UserEnabledAttribute,
+		config.UserUniqueIDAttribute} // PANDARIA: Add user uid attribute
 	return userSearchAttributes
 }
 
@@ -136,7 +138,8 @@ func GetGroupSearchAttributes(memberOfAttribute, ObjectClass string, config *v3.
 		config.GroupObjectClass,
 		config.UserLoginAttribute,
 		config.GroupNameAttribute,
-		config.GroupSearchAttribute}
+		config.GroupSearchAttribute,
+		config.GroupUniqueIDAttribute} // PANDARIA: Add group uid attribute
 	return groupSeachAttributes
 }
 
@@ -146,7 +149,8 @@ func GetUserSearchAttributesForLDAP(ObjectClass string, config *v3.LdapConfig) [
 		config.UserObjectClass,
 		config.UserLoginAttribute,
 		config.UserNameAttribute,
-		config.UserEnabledAttribute}
+		config.UserEnabledAttribute,
+		config.UserUniqueIDAttribute} // PANDARIA: Add user uid attribute
 	return userSearchAttributes
 }
 
@@ -156,7 +160,8 @@ func GetGroupSearchAttributesForLDAP(ObjectClass string, config *v3.LdapConfig) 
 		config.GroupObjectClass,
 		config.UserLoginAttribute,
 		config.GroupNameAttribute,
-		config.GroupSearchAttribute}
+		config.GroupSearchAttribute,
+		config.GroupUniqueIDAttribute} // PANDARIA: Add group uid attribute
 	return groupSeachAttributes
 }
 
@@ -177,12 +182,19 @@ func AuthenticateServiceAccountUser(serviceAccountPassword string, serviceAccoun
 	return nil
 }
 
-func AttributesToPrincipal(attribs []*ldapv2.EntryAttribute, dnStr, scope, providerName, userObjectClass, userNameAttribute, userLoginAttribute, groupObjectClass, groupNameAttribute string) (*v3.Principal, error) {
+func AttributesToPrincipal(entry *ldapv2.Entry, dnStr, scope, providerName, userObjectClass, userNameAttribute, userLoginAttribute, groupObjectClass, groupNameAttribute, userUID, groupUID string) (*v3.Principal, error) {
 	var externalIDType, accountName, externalID, login, kind string
-	externalID = dnStr
 	externalIDType = scope
 
+	attribs := entry.Attributes
 	if IsType(attribs, userObjectClass) {
+		// PANDARIA: get user uid attributes
+		if userUID != "" && strings.HasSuffix(scope, "_uid") {
+			externalID = getUIDAttributeValue(entry, userUID)
+		} else {
+			externalID = dnStr
+		}
+		// PANDARIA: end
 		for _, attr := range attribs {
 			if attr.Name == userNameAttribute {
 				if len(attr.Values) != 0 {
@@ -202,6 +214,13 @@ func AttributesToPrincipal(attribs []*ldapv2.EntryAttribute, dnStr, scope, provi
 		}
 		kind = "user"
 	} else if IsType(attribs, groupObjectClass) {
+		// PANDARIA: get group uid attributes
+		if groupUID != "" && strings.HasSuffix(scope, "_uid") {
+			externalID = getUIDAttributeValue(entry, groupUID)
+		} else {
+			externalID = dnStr
+		}
+		// PANDARIA: end
 		for _, attr := range attribs {
 			if attr.Name == groupNameAttribute {
 				if len(attr.Values) != 0 {
@@ -246,10 +265,33 @@ func GatherParentGroups(groupPrincipal v3.Principal, searchDomain string, groupS
 	}
 	groupDN := strings.TrimPrefix(parts[1], "//")
 
-	searchGroup := ldapv2.NewSearchRequest(searchDomain,
-		ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&(%v=%v)(%v=%v))", config.GroupMemberMappingAttribute, ldapv2.EscapeFilter(groupDN), config.ObjectClass, config.GroupObjectClass),
-		searchAttributes, nil)
+	// PANDARIA: check how to find group objects, whether using unique attributes,
+	// or using DN
+	var searchGroup *ldapv2.SearchRequest
+	if config.GroupUniqueIDAttribute != "" {
+		var uidValue string
+		if strings.EqualFold(config.GroupUniqueIDAttribute, ObjectGUIDAttribute) {
+			groupGUID, err := FromString(groupDN)
+			if err != nil {
+				logrus.Errorf("Convert objectGUID from %s error: %v", groupDN, err)
+				return err
+			}
+			uidValue = groupGUID.OctetString()
+		} else {
+			uidValue = groupDN
+		}
+		searchGroup = ldapv2.NewSearchRequest(searchDomain,
+			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&(%v=%v)(%v=%v))", config.GroupUniqueIDAttribute, uidValue, config.ObjectClass, config.GroupObjectClass),
+			searchAttributes, nil)
+	} else {
+		searchGroup = ldapv2.NewSearchRequest(searchDomain,
+			ldapv2.ScopeWholeSubtree, ldapv2.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&(%v=%v)(%v=%v))", config.GroupMemberMappingAttribute, ldapv2.EscapeFilter(groupDN), config.ObjectClass, config.GroupObjectClass),
+			searchAttributes, nil)
+	}
+	// PANDARIA: end
+
 	resultGroups, err := lConn.SearchWithPaging(searchGroup, 1000)
 	if err != nil {
 		return err
@@ -257,7 +299,18 @@ func GatherParentGroups(groupPrincipal v3.Principal, searchDomain string, groupS
 
 	for i := 0; i < len(resultGroups.Entries); i++ {
 		entry := resultGroups.Entries[i]
-		principal, err := AttributesToPrincipal(entry.Attributes, entry.DN, groupScope, config.ProviderName, config.UserObjectClass, config.UserNameAttribute, config.UserLoginAttribute, config.GroupObjectClass, config.GroupNameAttribute)
+		principal, err := AttributesToPrincipal(
+			entry,
+			entry.DN,
+			groupScope,
+			config.ProviderName,
+			config.UserObjectClass,
+			config.UserNameAttribute,
+			config.UserLoginAttribute,
+			config.GroupObjectClass,
+			config.GroupNameAttribute,
+			"",
+			config.GroupUniqueIDAttribute)
 		if err != nil {
 			logrus.Errorf("Error translating group result: %v", err)
 			continue
@@ -326,4 +379,14 @@ func ValidateLdapConfig(ldapConfig *v3.LdapConfig, certpool *x509.CertPool) (boo
 
 	logrus.Debugf("validated ldap configuration: %s", ldapConfig.Servers[0])
 	return true, nil
+}
+
+func getUIDAttributeValue(entry *ldapv2.Entry, uniqueAttribute string) string {
+	if strings.EqualFold(uniqueAttribute, ObjectGUIDAttribute) {
+		var b [16]byte
+		copy(b[:], entry.GetRawAttributeValue(uniqueAttribute))
+		objectGUID := FromWindowsArray(b)
+		return objectGUID.String()
+	}
+	return entry.GetAttributeValue(uniqueAttribute)
 }
