@@ -219,10 +219,12 @@ func (d *ConfigSyncer) sync() error {
 		return errors.Wrapf(err, "Get secrets")
 	}
 
-	if string(configSecret.Data["alertmanager.yaml"]) != string(data) || string(configSecret.Data["notification.tmpl"]) != deployer.NotificationTmpl {
+	if string(configSecret.Data["alertmanager.yaml"]) != string(data) || string(configSecret.Data["notification.tmpl"]) == "" {
 		newConfigSecret := configSecret.DeepCopy()
 		newConfigSecret.Data["alertmanager.yaml"] = data
-		newConfigSecret.Data["notification.tmpl"] = []byte(deployer.NotificationTmpl)
+		if string(newConfigSecret.Data["notification.tmpl"]) == "" {
+			newConfigSecret.Data["notification.tmpl"] = []byte(deployer.NotificationTmpl)
+		}
 
 		_, err = secretClient.Update(newConfigSecret)
 		if err != nil {
