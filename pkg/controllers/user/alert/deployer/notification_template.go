@@ -68,6 +68,7 @@ The metric {{ .CommonLabels.alert_name}} crossed the threshold
 {{ end -}}
 
 {{- define "__text_single" -}}
+Server URL: {{ .Labels.server_url}}
 Alert Name: {{ .Labels.alert_name}}
 Severity: {{ .Labels.severity}}
 Cluster Name: {{.Labels.cluster_name}}
@@ -150,6 +151,7 @@ Logs: {{ .Labels.logs}}
 {{ end -}}
 
 {{- define "__email_text_single" -}}
+Server URL: {{ .Labels.server_url}}<br>
 Alert Name: {{ .Labels.alert_name}}<br>
 Severity: {{ .Labels.severity}}<br>
 Cluster Name: {{.Labels.cluster_name}}<br>

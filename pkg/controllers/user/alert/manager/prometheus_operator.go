@@ -9,6 +9,7 @@ import (
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	monitorutil "github.com/rancher/rancher/pkg/monitoring"
+	"github.com/rancher/rancher/pkg/settings"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	rmonitoringv1 "github.com/rancher/types/apis/monitoring.coreos.com/v1"
@@ -147,6 +148,7 @@ func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectNa
 	comp := strings.Replace(metric.Comparison, "-", " ", -1)
 	labels := map[string]string{
 		"alert_type":      "metric",
+		"server_url":      settings.ServerURL.Get(),
 		"alert_name":      displayName,
 		"group_id":        groupID,
 		"cluster_name":    clusterName,

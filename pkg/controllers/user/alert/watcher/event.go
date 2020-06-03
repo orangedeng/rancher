@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/controllers/user/workload"
+	"github.com/rancher/rancher/pkg/settings"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
@@ -75,6 +76,7 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 			data := map[string]string{}
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["alert_type"] = "event"
 			data["event_type"] = alert.Spec.EventRule.EventType

@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	nodeHelper "github.com/rancher/rancher/pkg/node"
+	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/ticker"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -153,6 +154,7 @@ func (w *NodeWatcher) checkNodeMemUsage(alert *v3.ClusterAlertRule, machine *v3.
 			data := map[string]string{}
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["alert_type"] = "nodeMemory"
 			data["severity"] = alert.Spec.Severity
@@ -181,6 +183,7 @@ func (w *NodeWatcher) checkNodeCPUUsage(alert *v3.ClusterAlertRule, machine *v3.
 			data := map[string]string{}
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["alert_type"] = "nodeCPU"
 			data["severity"] = alert.Spec.Severity
@@ -208,6 +211,7 @@ func (w *NodeWatcher) checkNodeReady(alert *v3.ClusterAlertRule, machine *v3.Nod
 				data := map[string]string{}
 				data["rule_id"] = ruleID
 				data["group_id"] = alert.Spec.GroupName
+				data["server_url"] = settings.ServerURL.Get()
 				data["alert_name"] = alert.Spec.DisplayName
 				data["alert_type"] = "nodeHealthy"
 				data["severity"] = alert.Spec.Severity

@@ -12,6 +12,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/controllers/user/workload"
+	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/ticker"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -172,6 +173,7 @@ func (w *PodWatcher) checkPodRestarts(pod *corev1.Pod, alert *v3.ProjectAlertRul
 			data := map[string]string{}
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["alert_type"] = "podRestarts"
 			data["severity"] = alert.Spec.Severity
@@ -253,6 +255,7 @@ func (w *PodWatcher) checkPodRunning(pod *corev1.Pod, alert *v3.ProjectAlertRule
 			data := map[string]string{}
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["alert_type"] = "podNotRunning"
 			data["severity"] = alert.Spec.Severity
@@ -296,6 +299,7 @@ func (w *PodWatcher) checkPodScheduled(pod *corev1.Pod, alert *v3.ProjectAlertRu
 			data["rule_id"] = ruleID
 			data["group_id"] = alert.Spec.GroupName
 			data["alert_type"] = "podNotScheduled"
+			data["server_url"] = settings.ServerURL.Get()
 			data["alert_name"] = alert.Spec.DisplayName
 			data["severity"] = alert.Spec.Severity
 			data["cluster_name"] = clusterDisplayName
