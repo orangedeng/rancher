@@ -60,6 +60,7 @@ func Register(ctx context.Context, user *config.UserContext, kubeConfigGetter co
 		AppsLister:            user.Management.Project.Apps("").Controller().Lister(),
 		NsLister:              user.Core.Namespaces("").Controller().Lister(),
 		NsClient:              user.Core.Namespaces(""),
+		ClusterLister:         user.Management.Management.Clusters(""), // PANDARIA
 	}
 	appClient.AddClusterScopedLifecycle(ctx, "helm-controller", user.ClusterName, stackLifecycle)
 
@@ -85,6 +86,7 @@ type Lifecycle struct {
 	AppsLister            v3.AppLister
 	NsLister              corev1.NamespaceLister
 	NsClient              corev1.NamespaceInterface
+	ClusterLister         mgmtv3.ClusterInterface // PANDARIA
 }
 
 func (l *Lifecycle) Create(obj *v3.App) (runtime.Object, error) {
@@ -321,6 +323,15 @@ func (l *Lifecycle) Run(obj *v3.App, template string, tempDirs *hCommon.HelmPath
 	if err != nil {
 		return err
 	}
+	// PANDARIA: get cluster settings of system-default-registry
+	cluster, err := l.ClusterLister.Get(l.ClusterName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if cluster != nil && cluster.Spec.SystemDefaultRegistry != "" {
+		tempDirs.PrivateRegistry = cluster.Spec.SystemDefaultRegistry
+	}
+	// PANDARIA: end
 	notes, err := helmInstall(tempDirs, obj)
 	if err != nil {
 		// create an app revision so that user can decide to continue

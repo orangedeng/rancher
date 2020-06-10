@@ -50,6 +50,13 @@ func (f *Formatter) Formatter(request *types.APIContext, resource *types.RawReso
 
 		cluster, _ := f.Clusters.Get(fmt.Sprintf("%v", resource.Values["clusterId"]), metav1.GetOptions{})
 
+		// PANDARIA: using cluster private registry config for import cluster template yaml
+		if cluster != nil && cluster.Spec.SystemDefaultRegistry != "" {
+			resource.Values["insecureCommand"] = fmt.Sprintf(insecureCommandFormat, fmt.Sprintf("%s?privateRegistry=%s", url, cluster.Spec.SystemDefaultRegistry))
+			resource.Values["command"] = fmt.Sprintf(commandFormat, fmt.Sprintf("%s?privateRegistry=%s", url, cluster.Spec.SystemDefaultRegistry))
+		}
+		// PANDARIA: end
+
 		agentImage := image.ResolveWithCluster(settings.AgentImage.Get(), cluster)
 		// for linux
 		resource.Values["nodeCommand"] = fmt.Sprintf(nodeCommandFormat,

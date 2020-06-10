@@ -51,6 +51,9 @@ type HelmPath struct {
 	KustomizeFull string
 	// /kustomize.sh
 	KustomizeInJail string
+
+	// PANDARIA: cluster level system-default-registry
+	PrivateRegistry string
 }
 
 //Labels that need added for kustomization
@@ -137,6 +140,13 @@ func GenerateRandomPort() string {
 func InstallCharts(tempDirs *HelmPath, port string, obj *v3.App) error {
 	logrus.Debugf("InstallCharts - helm path info %+v\n", tempDirs)
 	extraArgs := GetExtraArgs(obj)
+
+	// PANDARIA: using cluster default registry to replace global settings
+	if tempDirs.PrivateRegistry != "" {
+		extraArgs["global.systemDefaultRegistry"] = tempDirs.PrivateRegistry
+	}
+	// PANDARIA: end
+
 	timeoutArgs := getTimeoutArgs(obj)
 	setValues, err := GenerateAnswerSetValues(obj, tempDirs, extraArgs)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/rancher/pkg/image"
 	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/systemtemplate"
+	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/apis/management.cattle.io/v3/schema"
 )
 
@@ -30,9 +31,23 @@ func ClusterImportHandler(resp http.ResponseWriter, req *http.Request) {
 		authImage = authImages[0]
 	}
 
+	// PANDARIA: using cluster private registry setting
+	var cluster *v3.Cluster
+	privateRegistries := req.URL.Query()["privateRegistry"]
+	if len(privateRegistries) > 0 {
+		cluster = &v3.Cluster{
+			Spec: v3.ClusterSpec{
+				ClusterSpecBase: v3.ClusterSpecBase{
+					SystemDefaultRegistry: privateRegistries[0],
+				},
+			},
+		}
+	}
+
 	if err := systemtemplate.SystemTemplate(resp, image.Resolve(settings.AgentImage.Get()), authImage, "", token, url,
-		false, nil, nil); err != nil {
+		false, cluster, nil); err != nil {
 		resp.WriteHeader(500)
 		resp.Write([]byte(err.Error()))
 	}
+	//PANDARIA: end
 }

@@ -22,6 +22,13 @@ func GetPrivateRepo(cluster *v3.Cluster) *v3.PrivateRegistry {
 		config := cluster.Spec.RancherKubernetesEngineConfig
 		return &config.PrivateRegistries[0]
 	}
+	// PANDARIA: cluster system default registry will replace global settings
+	if cluster != nil && cluster.Spec.SystemDefaultRegistry != "" {
+		return &v3.PrivateRegistry{
+			URL: cluster.Spec.SystemDefaultRegistry,
+		}
+	}
+	// PANDARIA: end
 	if settings.SystemDefaultRegistry.Get() != "" {
 		return &v3.PrivateRegistry{
 			URL: settings.SystemDefaultRegistry.Get(),
