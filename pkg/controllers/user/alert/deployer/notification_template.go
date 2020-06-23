@@ -34,7 +34,11 @@ The Pod {{ if .GroupLabels.namespace}}{{.GroupLabels.namespace}}:{{end}}{{.Group
 The workload {{ if .GroupLabels.workload_namespace}}{{.GroupLabels.workload_namespace}}:{{end}}{{.GroupLabels.workload_name}} has available replicas less than {{ .CommonLabels.available_percentage}}%
 
 {{- else if eq .CommonLabels.alert_type "metric" -}}
-The metric {{ .CommonLabels.alert_name}} crossed the threshold 
+{{- if match ".*pandaria_etcd_is_backup_failed.*" .CommonLabels.expression -}}
+{{ .CommonLabels.alert_name}}: ETCD backup failed for custom cluster
+{{- else}}
+The metric {{ .CommonLabels.alert_name}} crossed the threshold
+{{ end -}}
 {{ end -}}
 {{ end -}}
 
@@ -115,7 +119,11 @@ Project Name: {{ .Labels.project_name}}{{ end }}
 Pod Name: {{ .Labels.pod_name}}{{ else if .Labels.pod -}}Pod Name: {{ .Labels.pod}}{{ end }}
 Expression: {{ .Labels.expression}}
 {{- if .Labels.threshold_value }}
+{{- if match ".*pandaria_etcd_is_backup_failed.*" .Labels.expression -}}
+Description: Custom cluster {{ .Labels.name}} (ID: {{ .Labels.cluster }}) backup failed.
+{{- else }}
 Description: Threshold Crossed: datapoint value {{ .Annotations.current_value}} was {{ .Labels.comparison}} to the threshold ({{ .Labels.threshold_value}}) for ({{ .Labels.duration}})
+{{ end -}}
 {{- else}}
 Description: The configured event happened for ({{ .Labels.duration}}): expression matched, datapoint value is {{ .Annotations.current_value}}
 {{ end -}}
@@ -197,7 +205,11 @@ Namespace: {{.Labels.namespace}}<br>
 {{ end -}}
 Expression: {{.Labels.expression}}<br>
 {{- if .Labels.threshold_value }}
+{{- if match ".*pandaria_etcd_is_backup_failed.*" .Labels.expression -}}
+Description: Custom cluster {{ .Labels.name}} (ID: {{ .Labels.cluster }}) backup failed. <br>
+{{- else }}
 Description: Threshold Crossed: datapoint value {{ .Annotations.current_value}} was {{ .Labels.comparison}} to the threshold ({{ .Labels.threshold_value}}) for ({{ .Labels.duration}})<br>
+{{ end -}}
 {{- else}}
 Description: The configured event happened for ({{ .Labels.duration}}): expression matched, datapoint value is {{ .Annotations.current_value}}<br>
 {{ end -}}
