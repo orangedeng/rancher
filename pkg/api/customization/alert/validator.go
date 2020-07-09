@@ -31,19 +31,9 @@ func ClusterAlertRuleValidator(resquest *types.APIContext, schema *types.Schema,
 	}
 
 	if spec.MetricRule != nil {
-		var cluster v3client.Cluster
-		if err := access.ByID(resquest, resquest.Version, v3client.ClusterType, clusterID, &cluster); err != nil {
+		if err := isClusterMonitoringEnabled(resquest, clusterID); err != nil {
 			return err
 		}
-
-		if cluster.Conditions != nil {
-			for _, v := range cluster.Conditions {
-				if v.Type == monitoringEnabled && v.Status == "True" {
-					return nil
-				}
-			}
-		}
-		return fmt.Errorf("if you want to use metric alert, need to enable monitoring for cluster %s", clusterID)
 	}
 
 	return nil
@@ -51,26 +41,38 @@ func ClusterAlertRuleValidator(resquest *types.APIContext, schema *types.Schema,
 
 func ProjectAlertRuleValidator(resquest *types.APIContext, schema *types.Schema, data map[string]interface{}) error {
 	projectID := data["projectId"].(string)
+	if projectID == "" {
+		return fmt.Errorf("projectId is empty")
+	}
+	clusterID, _ := ref.Parse(projectID)
 
+	// validate for cluster monitor
 	var spec v3.ProjectAlertRuleSpec
 	if err := convert.ToObj(data, &spec); err != nil {
 		return httperror.NewAPIError(httperror.InvalidBodyContent, fmt.Sprintf("%v", err))
 	}
 
 	if spec.MetricRule != nil {
-		project := &v3client.Project{}
-		if err := access.ByID(resquest, resquest.Version, v3client.ProjectType, projectID, project); err != nil {
-			return fmt.Errorf("access project by id failed, %v", err)
+		if err := isClusterMonitoringEnabled(resquest, clusterID); err != nil {
+			return err
 		}
-		if project.Conditions != nil {
-			for _, v := range project.Conditions {
-				if v.Type == monitoringEnabled && v.Status == "True" {
-					return nil
-				}
-			}
-		}
-		return fmt.Errorf("if you want to use metric alert, need to enable monitoring for project %s", projectID)
 	}
 
 	return nil
+}
+
+func isClusterMonitoringEnabled(resquest *types.APIContext, clusterID string) error {
+	var cluster v3client.Cluster
+	if err := access.ByID(resquest, resquest.Version, v3client.ClusterType, clusterID, &cluster); err != nil {
+		return err
+	}
+
+	if cluster.Conditions != nil {
+		for _, v := range cluster.Conditions {
+			if v.Type == monitoringEnabled && v.Status == "True" {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("if you want to use metric alert, need to enable monitoring for cluster %s", clusterID)
 }

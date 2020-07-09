@@ -118,7 +118,7 @@ def test_cloned_role_permissions(admin_mc, remove_resource, user_factory,
     wait_until_available(cloned_user.client, admin_pc.project)
 
     project = cloned_user.client.by_id_project(admin_pc.project.id)
-    assert project.actions.enableMonitoring
+    assert project.actions.exportYaml
 
 
 def test_update_role_template_permissions(admin_mc, remove_resource,

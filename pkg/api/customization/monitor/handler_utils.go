@@ -180,25 +180,6 @@ func (a *authChecker) getAuthroizeNamespace() (string, error) {
 	return strings.Join(authNs, "|"), nil
 }
 
-func getAuthToken(userContext *config.UserContext, appName, namespace string) (string, error) {
-	sa, err := userContext.Core.ServiceAccounts(namespace).Get(appName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("get service account %s:%s for monitor failed, %v", namespace, appName, err)
-	}
-
-	var secretName string
-	if secretName = sa.Secrets[0].Name; secretName == "" {
-		return "", fmt.Errorf("get secret from service account %s:%s for monitor failed, secret name is empty", namespace, appName)
-	}
-
-	secret, err := userContext.Core.Secrets(namespace).Get(secretName, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("get secret %s:%s for monitor failed, %v", namespace, secretName, err)
-	}
-
-	return string(secret.Data["token"]), nil
-}
-
 func parseMetricParams(userContext *config.UserContext, nodeLister v3.NodeLister, resourceType, clusterName, projectName string, metricParams map[string]string) (map[string]string, error) {
 	newMetricParams := make(map[string]string)
 	for k, v := range metricParams {

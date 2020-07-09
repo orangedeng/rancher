@@ -162,11 +162,11 @@ func newQuery(ctx context.Context, api promapiv1.API) *Queries {
 type authTransport struct {
 	*http.Transport
 
-	token string
+	userID string
 }
 
 func (auth authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", auth.token))
+	req.Header.Add("X-RANCHER-USER", auth.userID)
 	return auth.Transport.RoundTrip(req)
 }
 
@@ -179,10 +179,10 @@ func newHTTPTransport(dial dialer.Dialer) *http.Transport {
 	}
 }
 
-func newPrometheusAPI(dial dialer.Dialer, url, token string) (promapiv1.API, error) {
+func newPrometheusAPI(dial dialer.Dialer, url, userID string) (promapiv1.API, error) {
 	auth := authTransport{
 		Transport: newHTTPTransport(dial),
-		token:     token,
+		userID:    userID,
 	}
 
 	cfg := promapi.Config{

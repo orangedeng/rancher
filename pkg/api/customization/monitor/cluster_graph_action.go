@@ -72,11 +72,10 @@ func (h *ClusterGraphHandler) QuerySeriesAction(actionName string, action *types
 	reqContext, cancel := context.WithTimeout(context.Background(), prometheusReqTimeout)
 	defer cancel()
 
-	var svcName, svcNamespace, svcPort, token string
-	prometheusName, prometheusNamespace := monitorutil.ClusterMonitoringInfo()
-	token, err = getAuthToken(userContext, prometheusName, prometheusNamespace)
-	if err != nil {
-		return err
+	var svcName, svcNamespace, svcPort, userID string
+	userID = apiContext.Request.Header.Get("Impersonate-User")
+	if userID == "" {
+		return fmt.Errorf("can't find user")
 	}
 
 	if inputParser.Input.Filters["resourceType"] == "istiocluster" {
@@ -95,7 +94,7 @@ func (h *ClusterGraphHandler) QuerySeriesAction(actionName string, action *types
 		svcName, svcNamespace, svcPort = monitorutil.ClusterPrometheusEndpoint()
 	}
 
-	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, token, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
+	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
 	if err != nil {
 		return err
 	}

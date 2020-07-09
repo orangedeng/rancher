@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	kcluster "github.com/rancher/kontainer-engine/cluster"
 	"github.com/rancher/rancher/pkg/app/utils"
-	"github.com/rancher/rancher/pkg/controllers/user/nslabels"
 	"github.com/rancher/rancher/pkg/monitoring"
 	"github.com/rancher/rancher/pkg/node"
 	"github.com/rancher/rancher/pkg/ref"
@@ -361,12 +360,6 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.level":        "cluster",
 		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.cluster_id":   cluster.Name,
 		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.cluster_name": cluster.Spec.DisplayName,
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].key":                nslabels.ProjectIDFieldLabel,
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].operator":           "In",
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].values[0]":          appDeployProjectID,
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].key":                          nslabels.ProjectIDFieldLabel,
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].operator":                     "In",
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].values[0]":                    appDeployProjectID,
 		"prometheus.ruleSelector.matchExpressions[0].key":                                   monitoring.CattlePrometheusRuleLabelKey,
 		"prometheus.ruleSelector.matchExpressions[0].operator":                              "In",
 		"prometheus.ruleSelector.matchExpressions[0].values[0]":                             monitoring.CattleAlertingPrometheusRuleLabelValue,

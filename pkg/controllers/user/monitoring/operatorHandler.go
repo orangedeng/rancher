@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/rancher/rancher/pkg/app/utils"
-	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/pkg/errors"
 	"github.com/rancher/rancher/pkg/monitoring"
@@ -79,7 +78,7 @@ func (h *operatorHandler) syncProject(key string, project *mgmtv3.Project) (runt
 
 	var newCluster *mgmtv3.Cluster
 	//should deploy
-	if cluster.Spec.EnableClusterAlerting || project.Spec.EnableProjectMonitoring {
+	if cluster.Spec.EnableClusterAlerting {
 		newObj, err := mgmtv3.ClusterConditionPrometheusOperatorDeployed.Do(cluster, func() (runtime.Object, error) {
 			cpy := cluster.DeepCopy()
 			return cpy, deploySystemMonitor(cpy, h.app)
@@ -111,14 +110,8 @@ func withdrawSystemMonitor(cluster *mgmtv3.Cluster, app *appHandler) error {
 		mgmtv3.ClusterConditionMonitoringEnabled.GetStatus(cluster) == ""
 	//status false and empty should withdraw. when status unknown, it means the deployment has error while deploying apps
 	isOperatorDeploying := !mgmtv3.ClusterConditionPrometheusOperatorDeployed.IsFalse(cluster)
-	areAllOwnedProjectMonitoringDisabling, err := allOwnedProjectsMonitoringDisabling(app.projectLister)
-	if err != nil {
-		mgmtv3.ClusterConditionPrometheusOperatorDeployed.Unknown(cluster)
-		mgmtv3.ClusterConditionPrometheusOperatorDeployed.ReasonAndMessageFromError(cluster, errors.Wrap(err, "failed to list owned projects of cluster"))
-		return err
-	}
 
-	if areAllOwnedProjectMonitoringDisabling && isAlertingDisabling && isClusterMonitoringDisabling && isOperatorDeploying {
+	if isAlertingDisabling && isClusterMonitoringDisabling && isOperatorDeploying {
 		appName, appTargetNamespace := monitoring.SystemMonitoringInfo()
 
 		if err := monitoring.WithdrawApp(app.cattleAppClient, monitoring.OwnedAppListOptions(cluster.Name, appName, appTargetNamespace)); err != nil {
@@ -133,21 +126,6 @@ func withdrawSystemMonitor(cluster *mgmtv3.Cluster, app *appHandler) error {
 	}
 
 	return nil
-}
-
-func allOwnedProjectsMonitoringDisabling(projectClient mgmtv3.ProjectLister) (bool, error) {
-	ownedProjectList, err := projectClient.List("", labels.NewSelector())
-	if err != nil {
-		return false, err
-	}
-
-	for _, ownedProject := range ownedProjectList {
-		if ownedProject.Spec.EnableProjectMonitoring {
-			return false, nil
-		}
-	}
-
-	return true, nil
 }
 
 func deploySystemMonitor(cluster *mgmtv3.Cluster, app *appHandler) (backErr error) {
