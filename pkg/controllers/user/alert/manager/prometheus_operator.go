@@ -144,7 +144,7 @@ func (c *PromOperatorCRDManager) AddRule(ruleGroup *monitoringv1.RuleGroup, rule
 }
 
 func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectName string, metric *v3.MetricRule) monitoringv1.Rule {
-	expr := getExpr(metric.Expression, metric.Comparison, metric.ThresholdValue)
+	expr := GetExpr(metric.Expression, metric.Comparison, metric.ThresholdValue)
 	comp := strings.Replace(metric.Comparison, "-", " ", -1)
 	labels := map[string]string{
 		"alert_type":      "metric",
@@ -178,7 +178,7 @@ func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectNa
 	}
 }
 
-func getExpr(expr, comparison string, thresholdValue float64) string {
+func GetExpr(expr, comparison string, thresholdValue float64) string {
 	if comparison != ComparisonHasValue {
 		return fmt.Sprintf("%s%s%v", expr, comparisonMap[comparison], thresholdValue)
 	}

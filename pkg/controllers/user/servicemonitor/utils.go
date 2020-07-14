@@ -92,6 +92,23 @@ func getServiceMonitorFromWorkload(w *util.Workload) (*monitoringv1.ServiceMonit
 		if endpoint.Path == "" {
 			endpoint.Path = "/metrics"
 		}
+
+		if len(metric.WorkloadMetricRelabelConfig) != 0 {
+			var metricRelabel []*monitoringv1.RelabelConfig
+			for _, v := range metric.WorkloadMetricRelabelConfig {
+				if v.Regex != "" {
+					metricRelabel = append(metricRelabel, &monitoringv1.RelabelConfig{
+						Regex:  v.Regex,
+						Action: v.Action,
+					})
+				}
+			}
+
+			if len(metricRelabel) != 0 {
+				endpoint.MetricRelabelConfigs = metricRelabel
+			}
+		}
+
 		rtn.Spec.Endpoints = append(rtn.Spec.Endpoints, endpoint)
 	}
 	return rtn, nil
@@ -108,11 +125,12 @@ func getWorkloadFromOwners(namespace string, owners []metav1.OwnerReference, lis
 }
 
 func areServiceMonitorEqual(a, b *monitoringv1.ServiceMonitor) bool {
-	sort.Sort(EndpointSorter(a.Spec.Endpoints))
-	sort.Sort(EndpointSorter(b.Spec.Endpoints))
 	if len(a.Spec.Endpoints) != len(b.Spec.Endpoints) {
 		return false
 	}
+
+	sort.Sort(EndpointSorter(a.Spec.Endpoints))
+	sort.Sort(EndpointSorter(b.Spec.Endpoints))
 	for i := 0; i < len(a.Spec.Endpoints); i++ {
 		aEndpoint := a.Spec.Endpoints[i]
 		bEndpoint := b.Spec.Endpoints[i]
@@ -120,6 +138,22 @@ func areServiceMonitorEqual(a, b *monitoringv1.ServiceMonitor) bool {
 			aEndpoint.Path != bEndpoint.Path ||
 			aEndpoint.Scheme != bEndpoint.Scheme {
 			return false
+		}
+
+		if len(aEndpoint.MetricRelabelConfigs) != len(bEndpoint.MetricRelabelConfigs) {
+			return false
+		}
+
+		sort.Sort(RelabelConfigSorter(aEndpoint.MetricRelabelConfigs))
+		sort.Sort(RelabelConfigSorter(bEndpoint.MetricRelabelConfigs))
+
+		for j := 0; j < len(bEndpoint.MetricRelabelConfigs); j++ {
+			aRelabel := aEndpoint.MetricRelabelConfigs[j]
+			bRelabel := bEndpoint.MetricRelabelConfigs[j]
+			if aRelabel.Regex != bRelabel.Regex ||
+				aRelabel.Action != bRelabel.Action {
+				return false
+			}
 		}
 	}
 	for _, annotation := range []string{util.WorkloadAnnotation, servicesAnnotation} {
@@ -157,6 +191,24 @@ func (e EndpointSorter) Swap(i, j int) {
 
 func (e EndpointSorter) Less(i, j int) bool {
 	return getEndpointString(e[i]) < getEndpointString(e[j])
+}
+
+type RelabelConfigSorter []*monitoringv1.RelabelConfig
+
+func (e RelabelConfigSorter) Len() int {
+	return len(e)
+}
+
+func (e RelabelConfigSorter) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
+func (e RelabelConfigSorter) Less(i, j int) bool {
+	return getRelabelConfigString(e[i]) < getRelabelConfigString(e[j])
+}
+
+func getRelabelConfigString(e *monitoringv1.RelabelConfig) string {
+	return fmt.Sprintf("%s%s", e.Regex, e.Action)
 }
 
 func getEndpointString(e monitoringv1.Endpoint) string {

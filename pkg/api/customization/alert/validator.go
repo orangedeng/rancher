@@ -7,9 +7,12 @@ import (
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
+	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/ref"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	v3client "github.com/rancher/types/client/management/v3"
+
+	"github.com/prometheus/prometheus/promql"
 )
 
 const monitoringEnabled = "MonitoringEnabled"
@@ -34,6 +37,10 @@ func ClusterAlertRuleValidator(resquest *types.APIContext, schema *types.Schema,
 		if err := isClusterMonitoringEnabled(resquest, clusterID); err != nil {
 			return err
 		}
+
+		if err := isValidExpr(spec.MetricRule); err != nil {
+			return httperror.NewAPIError(httperror.InvalidBodyContent, err.Error())
+		}
 	}
 
 	return nil
@@ -56,6 +63,10 @@ func ProjectAlertRuleValidator(resquest *types.APIContext, schema *types.Schema,
 		if err := isClusterMonitoringEnabled(resquest, clusterID); err != nil {
 			return err
 		}
+
+		if err := isValidExpr(spec.MetricRule); err != nil {
+			return httperror.NewAPIError(httperror.InvalidBodyContent, err.Error())
+		}
 	}
 
 	return nil
@@ -75,4 +86,12 @@ func isClusterMonitoringEnabled(resquest *types.APIContext, clusterID string) er
 		}
 	}
 	return fmt.Errorf("if you want to use metric alert, need to enable monitoring for cluster %s", clusterID)
+}
+
+func isValidExpr(metricRule *v3.MetricRule) error {
+	expr := manager.GetExpr(metricRule.Expression, metricRule.Comparison, metricRule.ThresholdValue)
+	if _, err := promql.ParseExpr(expr); err != nil {
+		return fmt.Errorf("expression %s is invalid, %v", expr, err)
+	}
+	return nil
 }
