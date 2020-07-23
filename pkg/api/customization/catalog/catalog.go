@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	SystemLibraryURL            = "https://git.rancher.io/system-charts"
+	SystemLibraryURL            = "https://github.com/cnrancher/system-charts" // PANDARIA
 	SystemCatalogName           = "system-library"
 	embededSystemCatalogSetting = "system-catalog"
 )

@@ -21,10 +21,13 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should set default annotations with cert-manager < 0.11.0 using parameter
   set:
     certmanager.version: 0.9.0
@@ -32,10 +35,13 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should set default annotations with cert-manager >= 0.11.0 using capabilities
   capabilities:
     apiversions:
@@ -44,11 +50,14 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should set default annotations with cert-manager >= 0.11.0 using parameter
   set:
     certmanager.version: 0.12.0
@@ -56,11 +65,14 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should over write proxy-connect-timeout with cert-manager < 0.11.0 using capabilities
   capabilities:
     apiversions:
@@ -72,10 +84,13 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should over write proxy-connect-timeout with cert-manager < 0.11.0 using parameter
   set:
     certmanager.version: 0.9.0
@@ -85,10 +100,13 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should over write proxy-connect-timeout with cert-manager > 0.11.0 using capabilities
   capabilities:
     apiversions:
@@ -100,11 +118,14 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should over write proxy-connect-timeout with cert-manager > 0.11.0 using parameter
   set:
     certmanager.version: 0.12.0
@@ -114,11 +135,14 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
         nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+        nginx.ingress.kubernetes.io/configuration-snippet: |
+          more_clear_headers Server;
 - it: should set source secret
   set:
     hostname: test
@@ -145,6 +169,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
@@ -162,6 +187,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
@@ -181,6 +207,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
@@ -199,6 +226,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
@@ -220,6 +248,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
@@ -239,6 +268,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         certmanager.k8s.io/issuer: RELEASE-NAME-rancher
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
         nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
@@ -260,6 +290,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
@@ -280,6 +311,7 @@ tests:
   - equal:
       path: metadata.annotations
       value:
+        field.cattle.io/rancher-server-ingress: "true"
         cert-manager.io/issuer: RELEASE-NAME-rancher
         cert-manager.io/issuer-kind: Issuer
         nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"

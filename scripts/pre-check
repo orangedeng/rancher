@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/../
+
+macvlan_version_dapper=$(grep MACVLAN_NETWORK_ADDON_VERSION= Dockerfile-pandaria.dapper | sed 's/[ ]*//g' | sed 's/[MACVLAN_NETWORK_ADDON_VERSION=]*//g' | sed 's/[\]*//g')
+
+echo "macvlan version in Dockerfile-pandaria.dapper: $macvlan_version_dapper"
+
+macvlan_version_dockerfile=$(grep MACVLAN_NETWORK_ADDON_VERSION= package/Dockerfile.pandaria | sed 's/[ ]*//g' | sed 's/[MACVLAN_NETWORK_ADDON_VERSION=]*//g')
+
+echo "macvlan version in package/Dockerfile.pandaria: $macvlan_version_dockerfile"
+
+if [[ "$macvlan_version_dapper" != "$macvlan_version_dockerfile" ]]; then
+  echo "MACVLAN_NETWORK_ADDON_VERSION is not equal in Dockerfile-pandaria.dapper and package/Dockerfile.pandaria"
+  exit 1
+fi
+
+# compare the go modules between linux and windows
+go_mod_list=$(cat scripts/go-mod-replace-pandaria  | grep "^github.com")
+for mod in $go_mod_list; do
+    echo "go mod for pandaria: $mod"
+    grep -q $mod scripts/windows/go-mod-replace-pandaria-windows.ps1
+    if [[ $? -ne 0 ]]; then
+        echo "Please check the go-mod-replace-pandaria and go-mod-replace-pandaria-windows.ps1"
+        exit 1
+    fi
+done
+
+echo "Finish check version"

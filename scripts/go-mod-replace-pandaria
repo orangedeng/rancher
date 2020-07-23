@@ -1,0 +1,32 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+
+REQUIRE="
+github.com/vgough/grpc-proxy@v0.0.0-20191207203309-13d1aa04a5a6
+github.com/aliyun/alibaba-cloud-sdk-go@v1.61.27
+gopkg.in/cas.v2@v2.2.0
+"
+
+REPLACE="
+github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible
+github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20200722034816-8156842814a2
+github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200723043629-8c97304c7911
+"
+
+# https://golang.org/cmd/go/#hdr-Edit_go_mod_from_tools_or_scripts
+
+for m in $REQUIRE; do
+   go mod edit -require $m
+done
+
+for m in $REPLACE; do
+   go mod edit -replace $m
+done
+
+if [ "$OAUTH_TOKEN" != "" ]; then
+   git config --global url."https://${OAUTH_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+fi
+
+GOPRIVATE="github.com/cnrancher" go mod vendor
