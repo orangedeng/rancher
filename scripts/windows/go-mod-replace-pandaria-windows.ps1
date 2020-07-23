@@ -7,7 +7,7 @@ $REQUIRE=@("github.com/vgough/grpc-proxy@v0.0.0-20191207203309-13d1aa04a5a6",
 
 $REPLACE=@("github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible",
 "github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20200722034816-8156842814a2",
-"github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200723043629-8c97304c7911")
+"github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200730081152-cb2d9d4b884d")
 
 # https://golang.org/cmd/go/#hdr-Edit_go_mod_from_tools_or_scripts
 
