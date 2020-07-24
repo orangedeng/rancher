@@ -27,6 +27,9 @@ import (
 	"github.com/rancher/types/config"
 	"github.com/rancher/types/user"
 	"github.com/sirupsen/logrus"
+
+	// Pandaria: cas support
+	"github.com/rancher/rancher/pkg/auth/providers/cas"
 )
 
 const (
@@ -151,6 +154,9 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 	case client.GoogleOAuthProviderType:
 		input = &v3public.GoogleOauthLogin{}
 		providerName = googleoauth.Name
+	case client.CASProviderType: // Pandaria: cas support
+		input = &v3public.CASLogin{}
+		providerName = cas.Name
 	default:
 		return v3.Token{}, "", httperror.NewAPIError(httperror.ServerError, "unknown authentication provider")
 	}

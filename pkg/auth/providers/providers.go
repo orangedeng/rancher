@@ -18,6 +18,9 @@ import (
 	client "github.com/rancher/types/client/management/v3"
 	publicclient "github.com/rancher/types/client/management/v3public"
 	"github.com/rancher/types/config"
+
+	// Pandaria: cas support
+	"github.com/rancher/rancher/pkg/auth/providers/cas"
 )
 
 var (
@@ -129,6 +132,14 @@ func Configure(ctx context.Context, mgmt *config.ScaledContext) {
 	providers[googleoauth.Name] = p
 	providersByType[client.GoogleOauthConfigType] = p
 	providersByType[publicclient.GoogleOAuthProviderType] = p
+
+	// Pandaria: cas support
+	p = cas.Configure(ctx, mgmt, userMGR, tokenMGR, cas.Name)
+	ProviderNames[cas.Name] = true
+	UnrefreshableProviders[cas.Name] = true
+	providers[cas.Name] = p
+	providersByType[client.CASConfigType] = p
+	providersByType[publicclient.CASProviderType] = p
 }
 
 func AuthenticateUser(ctx context.Context, input interface{}, providerName string) (v3.Principal, []v3.Principal, string, error) {

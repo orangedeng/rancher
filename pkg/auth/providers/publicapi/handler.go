@@ -34,6 +34,8 @@ var authProviderTypes = []string{
 	v3public.OKTAProviderType,
 	v3public.ShibbolethProviderType,
 	v3public.GoogleOAuthProviderType,
+	// Pandaria: cas support
+	v3public.CASProviderType,
 }
 
 func authProviderSchemas(ctx context.Context, management *config.ScaledContext, schemas *types.Schemas) error {

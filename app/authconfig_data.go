@@ -15,6 +15,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	// Pandaria: cas support
+	"github.com/rancher/rancher/pkg/auth/providers/cas"
 )
 
 func addAuthConfigs(management *config.ManagementContext) error {
@@ -59,6 +62,11 @@ func addAuthConfigs(management *config.ManagementContext) error {
 	}
 
 	if err := addAuthConfig(googleoauth.Name, client.GoogleOauthConfigType, false, management); err != nil {
+		return err
+	}
+
+	// Pandaria: cas support
+	if err := addAuthConfig(cas.Name, client.CASConfigType, false, management); err != nil {
 		return err
 	}
 

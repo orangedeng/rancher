@@ -15,7 +15,7 @@ def test_auth_configs(admin_mc):
 
     configs = client.list_auth_config()
 
-    assert configs.pagination.total == 12
+    assert configs.pagination.total == 13
 
     gh = None
     local = None
@@ -29,6 +29,7 @@ def test_auth_configs(admin_mc):
     okta = None
     googleoauth = None
     shibboleth = None
+    cas = None
 
     for c in configs:
         if c.type == "githubConfig":
@@ -55,9 +56,11 @@ def test_auth_configs(admin_mc):
             googleoauth = c
         elif c.type == "shibbolethConfig":
             shibboleth = c
+        elif c.type == "casConfig":
+            cas = c
 
     for x in [gh, local, ad, azure, openldap,
-              freeIpa, ping, adfs, keycloak, okta, googleoauth]:
+              freeIpa, ping, adfs, keycloak, okta, googleoauth, cas]:
         assert x is not None
         config = client.by_id_auth_config(x.id)
         with pytest.raises(ApiError) as e:
@@ -88,6 +91,9 @@ def test_auth_configs(admin_mc):
     assert googleoauth.actions.testAndApply
 
     assert shibboleth.actions.testAndEnable
+
+    assert cas.actions.configureTest
+    assert cas.actions.testAndApply
 
 
 def test_auth_config_secrets(admin_mc):

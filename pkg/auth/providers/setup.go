@@ -25,6 +25,7 @@ var authConfigTypes = []string{
 	client.OKTAConfigType,
 	client.ShibbolethConfigType,
 	client.GoogleOauthConfigType,
+	client.CASConfigType, // Pandaria: cas support
 }
 
 func SetupAuthConfig(ctx context.Context, management *config.ScaledContext, schemas *types.Schemas) {
