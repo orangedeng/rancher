@@ -18,7 +18,7 @@ import (
 )
 
 type Authenticator interface {
-	Authenticate(req *http.Request) (authed bool, user string, groups []string, err error)
+	Authenticate(req *http.Request) (authed bool, user string, userDisplayName string, groups []string, err error) //PANDARIA: add user displayname
 	TokenFromRequest(req *http.Request) (*v3.Token, error)
 }
 
@@ -70,31 +70,31 @@ func tokenKeyIndexer(obj interface{}) ([]string, error) {
 	return []string{token.Token}, nil
 }
 
-func (a *tokenAuthenticator) Authenticate(req *http.Request) (bool, string, []string, error) {
+func (a *tokenAuthenticator) Authenticate(req *http.Request) (bool, string, string, []string, error) {
 	token, err := a.TokenFromRequest(req)
 	if err != nil {
-		return false, "", []string{}, err
+		return false, "", "", []string{}, err
 	}
 
 	if token.Enabled != nil && !*token.Enabled {
-		return false, "", []string{}, fmt.Errorf("user's token is not enabled")
+		return false, "", "", []string{}, fmt.Errorf("user's token is not enabled")
 	}
 	if token.ClusterName != "" && token.ClusterName != clusterrouter.GetClusterID(req) {
-		return false, "", []string{}, fmt.Errorf("clusterID does not match")
+		return false, "", "", []string{}, fmt.Errorf("clusterID does not match")
 	}
 
 	attribs, err := a.userAttributeLister.Get("", token.UserID)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return false, "", []string{}, err
+		return false, "", "", []string{}, err
 	}
 
 	u, err := a.userLister.Get("", token.UserID)
 	if err != nil {
-		return false, "", []string{}, err
+		return false, "", "", []string{}, err
 	}
 
 	if u.Enabled != nil && !*u.Enabled {
-		return false, "", []string{}, fmt.Errorf("user is not enabled")
+		return false, "", "", []string{}, fmt.Errorf("user is not enabled")
 	}
 
 	var groups []string
@@ -122,7 +122,14 @@ func (a *tokenAuthenticator) Authenticate(req *http.Request) (bool, string, []st
 
 	groups = append(groups, user.AllAuthenticated, "system:cattle:authenticated")
 
-	return true, token.UserID, groups, nil
+	var displayname string
+	if u.DisplayName != "" {
+		displayname = u.DisplayName
+	} else {
+		displayname = u.Username
+	}
+	//PANDARIA: add user displayname
+	return true, token.UserID, displayname, groups, nil
 }
 
 func (a *tokenAuthenticator) TokenFromRequest(req *http.Request) (*v3.Token, error) {

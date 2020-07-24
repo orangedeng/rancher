@@ -77,6 +77,7 @@ var (
 	IgnoreNodeName                    = NewSetting("ignore-node-name", "")                                                                                           // nodes to ignore when syncing v1.node to v3.node
 	SystemGPUMonitoringCatalogID      = NewSetting("system-gpu-monitoring-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-monitoring&version=0.0.2")  // Pandaria gpu management
 	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2`") // Pandaria gpu management
+	AuditlogServer                    = NewSetting("auditlog-server-url", "")                                                                                        //Pandria auditlog
 )
 
 func init() {

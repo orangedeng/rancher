@@ -30,7 +30,7 @@ type authHeaderHandler struct {
 }
 
 func (h authHeaderHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	authed, user, groups, err := h.auth.Authenticate(req)
+	authed, user, userDisplayName, groups, err := h.auth.Authenticate(req) //PANDARIA: add user displayname
 	if err != nil || !authed {
 		util.ReturnHTTPError(rw, req, 401, err.Error())
 		return
@@ -44,6 +44,7 @@ func (h authHeaderHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	req.Header.Set("Impersonate-User", user)
+	req.Header.Set("Impersonate-User-DisplayName", userDisplayName) //PANDARIA: add user displayname
 	req.Header.Del("Impersonate-Group")
 	for _, group := range groups {
 		req.Header.Add("Impersonate-Group", group)
@@ -53,6 +54,7 @@ func (h authHeaderHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	if ok {
 		auditUser.Name = user
 		auditUser.Group = groups
+		auditUser.DisplayName = userDisplayName //PANDARIA: add user displayname
 	}
 
 	if !strings.HasPrefix(user, "system:") {

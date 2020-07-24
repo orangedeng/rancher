@@ -63,12 +63,15 @@ type UserInfo struct {
 	RequestUser string `json:"requestUser,omitempty"`
 	// RequestGroups is the --as-group list
 	RequestGroups []string `json:"requestGroups,omitempty"`
+	//PANDARIA: add user displayname
+	DisplayName string `json:"displayName,omitempty"`
 }
 
 func GetUserInfo(req *http.Request) *UserInfo {
 	return &UserInfo{
-		Name:  req.Header.Get("Impersonate-User"),
-		Group: req.Header["Impersonate-Group"],
+		Name:        req.Header.Get("Impersonate-User"),
+		Group:       req.Header["Impersonate-Group"],
+		DisplayName: req.Header.Get("Impersonate-User-DisplayName"), //PANDARIA: add user displayname
 	}
 }
 
