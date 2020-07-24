@@ -135,7 +135,9 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("management.cattle.io").resources("clustercatalogs").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("clustermonitorgraphs").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("catalogtemplates").verbs("get", "list", "watch").
-		addRule().apiGroups("management.cattle.io").resources("catalogtemplateversions").verbs("get", "list", "watch")
+		addRule().apiGroups("management.cattle.io").resources("catalogtemplateversions").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
 
 	rb.addRoleTemplate("Create Projects", "projects-create", "cluster", false, false, false).
 		addRule().apiGroups("management.cattle.io").resources("projects").verbs("create")
@@ -171,7 +173,13 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("management.cattle.io").resources("clusterroletemplatebindings").verbs("*")
 
 	rb.addRoleTemplate("View Cluster Members", "clusterroletemplatebindings-view", "cluster", false, false, false).
-		addRule().apiGroups("management.cattle.io").resources("clusterroletemplatebindings").verbs("get", "list", "watch")
+		addRule().apiGroups("management.cattle.io").resources("clusterroletemplatebindings").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
+
+	rb.addRoleTemplate("View MacvlanSubnets", "macvlansubnets-view", "cluster", false, false, false).
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
 
 	rb.addRoleTemplate("Manage Cluster Catalogs", "clustercatalogs-manage", "cluster", false, false, true).
 		addRule().apiGroups("management.cattle.io").resources("clustercatalogs").verbs("*")
@@ -213,6 +221,8 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("config.istio.io").resources("apikeys", "authorizations", "checknothings", "circonuses", "deniers", "fluentds", "handlers", "kubernetesenvs", "kuberneteses", "listcheckers", "listentries", "logentries", "memquotas", "metrics", "opas", "prometheuses", "quotas", "quotaspecbindings", "quotaspecs", "rbacs", "reportnothings", "rules", "solarwindses", "stackdrivers", "statsds", "stdios").verbs("*").
 		addRule().apiGroups("authentication.istio.io").resources("policies").verbs("*").
 		addRule().apiGroups("rbac.istio.io").resources("rbacconfigs", "serviceroles", "servicerolebindings").verbs("*").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("*").
 		setRoleTemplateNames("admin")
 
@@ -244,6 +254,8 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("config.istio.io").resources("apikeys", "authorizations", "checknothings", "circonuses", "deniers", "fluentds", "handlers", "kubernetesenvs", "kuberneteses", "listcheckers", "listentries", "logentries", "memquotas", "metrics", "opas", "prometheuses", "quotas", "quotaspecbindings", "quotaspecs", "rbacs", "reportnothings", "rules", "solarwindses", "stackdrivers", "statsds", "stdios").verbs("*").
 		addRule().apiGroups("authentication.istio.io").resources("policies").verbs("*").
 		addRule().apiGroups("rbac.istio.io").resources("rbacconfigs", "serviceroles", "servicerolebindings").verbs("*").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("*").
 		setRoleTemplateNames("edit")
 
@@ -271,6 +283,8 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("config.istio.io").resources("apikeys", "authorizations", "checknothings", "circonuses", "deniers", "fluentds", "handlers", "kubernetesenvs", "kuberneteses", "listcheckers", "listentries", "logentries", "memquotas", "metrics", "opas", "prometheuses", "quotas", "quotaspecbindings", "quotaspecs", "rbacs", "reportnothings", "rules", "solarwindses", "stackdrivers", "statsds", "stdios").verbs("get", "list", "watch").
 		addRule().apiGroups("authentication.istio.io").resources("policies").verbs("get", "list", "watch").
 		addRule().apiGroups("rbac.istio.io").resources("rbacconfigs", "serviceroles", "servicerolebindings").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("get", "list", "watch").
 		setRoleTemplateNames("view")
 
@@ -285,7 +299,9 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("*").resources("limitranges", "pods/log", "pods/status", "replicationcontrollers/status", "resourcequotas", "resourcequotas/status", "bindings").verbs("get", "list", "watch").
 		addRule().apiGroups("project.cattle.io").resources("apps").verbs("*").
 		addRule().apiGroups("project.cattle.io").resources("apprevisions").verbs("*").
-		addRule().apiGroups("management.cattle.io").resources("projectmonitorgraphs").verbs("get", "list", "watch")
+		addRule().apiGroups("management.cattle.io").resources("projectmonitorgraphs").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
 
 	rb.addRoleTemplate("View Workloads", "workloads-view", "project", false, false, false).
 		addRule().apiGroups("*").resources("pods", "replicationcontrollers", "replicationcontrollers/scale", "daemonsets", "deployments",

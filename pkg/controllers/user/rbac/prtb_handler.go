@@ -29,6 +29,13 @@ var globalResourcesNeededInProjects = map[string]map[string]bool{
 	"apiservices": {
 		"apiregistration.k8s.io": true,
 	},
+	// PANDARIA: followings are the privileges needed by macvlan network plugin
+	"macvlansubnets": {
+		"macvlan.cluster.cattle.io": true,
+	},
+	"macvlanips": {
+		"macvlan.cluster.cattle.io": true,
+	},
 }
 
 func newPRTBLifecycle(m *manager) *prtbLifecycle {

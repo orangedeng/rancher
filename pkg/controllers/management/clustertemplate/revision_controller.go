@@ -39,6 +39,7 @@ func newRevController(ctx context.Context, mgmt *config.ManagementContext) *RevC
 func Register(ctx context.Context, management *config.ManagementContext) {
 	n := newRevController(ctx, management)
 	if n != nil {
+		n.clusterTemplateRevisions.AddLifecycle(ctx, "clustertemplaterevisions-provisioner", n)
 		management.Management.ClusterTemplateRevisions("").AddHandler(ctx, RevisionController, n.sync)
 	}
 	registerRbacControllers(ctx, management)
@@ -94,4 +95,33 @@ func (n *RevController) sync(key string, obj *v3.ClusterTemplateRevision) (runti
 	}
 
 	return nil, nil
+}
+
+// Create for pandaria: remove macvlan addons on create
+func (n *RevController) Create(rev *v3.ClusterTemplateRevision) (runtime.Object, error) {
+	revCopy := rev.DeepCopy()
+	removeMacvlanAddons(revCopy)
+	return n.clusterTemplateRevisions.Update(revCopy)
+}
+
+func (n *RevController) Remove(obj *v3.ClusterTemplateRevision) (runtime.Object, error) {
+	return obj, nil
+}
+func (n *RevController) Updated(obj *v3.ClusterTemplateRevision) (runtime.Object, error) {
+	return obj, nil
+}
+
+// removeMacvlanAddons for pandaria: remove macvlan addons
+func removeMacvlanAddons(rev *v3.ClusterTemplateRevision) {
+	if rev.Spec.ClusterConfig.RancherKubernetesEngineConfig != nil {
+		if rev.Spec.ClusterConfig.RancherKubernetesEngineConfig.AddonsInclude != nil {
+			addons := []string{}
+			for _, v := range rev.Spec.ClusterConfig.RancherKubernetesEngineConfig.AddonsInclude {
+				if !(strings.Contains(v, "multus-flannel-macvlan") || strings.Contains(v, "multus-canal-macvlan")) {
+					addons = append(addons, v)
+				}
+			}
+			rev.Spec.ClusterConfig.RancherKubernetesEngineConfig.AddonsInclude = addons
+		}
+	}
 }
