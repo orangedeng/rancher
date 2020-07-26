@@ -57,15 +57,21 @@ type machineDriverCompare struct {
 }
 
 func addMachineDrivers(management *config.ManagementContext) error {
-	if err := addMachineDriver("pinganyunecs", "https://drivers.rancher.cn/node-driver-pinganyun/0.3.0/docker-machine-driver-pinganyunecs-linux.tgz",
+	if err := addMachineDriver("pinganyunecs", "https://localhost/assets/engine-drivers/docker-machine-driver-pinganyunecs-linux.tgz",
 		"https://drivers.rancher.cn/node-driver-pinganyun/0.3.0/component.js", "f84ccec11c2c1970d76d30150916933efe8ca49fe4c422c8954fc37f71273bb5",
 		[]string{"drivers.rancher.cn"}, false, false, management); err != nil {
 		return err
 	}
-	if err := addMachineDriver("aliyunecs", "https://drivers.rancher.cn/node-driver-aliyun/1.0.4/docker-machine-driver-aliyunecs.tgz",
-		"", "5990d40d71c421a85563df9caf069466f300cd75723effe4581751b0de9a6a0e", []string{"ecs.aliyuncs.com"}, false, false, management); err != nil {
+
+	aliyunActive := true
+	if dl := os.Getenv("CATTLE_DEV_MODE"); dl != "" {
+		aliyunActive = false
+	}
+	if err := addMachineDriver("aliyunecs", "https://localhost/assets/engine-drivers/docker-machine-driver-aliyunecs-linux-amd64.tgz",
+		"/assets/driver-aliyunecs/component.js", "4d1d1d00f618f611cdf4c1bafac5f42e12afebe5697655067abc2510df526314", []string{"ecs.aliyuncs.com"}, aliyunActive, false, management); err != nil {
 		return err
 	}
+
 	if err := addMachineDriver(Amazonec2driver, "local://", "", "",
 		[]string{"iam.amazonaws.com", "iam.%.amazonaws.com.cn", "ec2.%.amazonaws.com", "ec2.%.amazonaws.com.cn"},
 		true, true, management); err != nil {

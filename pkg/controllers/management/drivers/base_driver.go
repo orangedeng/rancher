@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -317,7 +318,17 @@ func getHasher(hash string) (hash.Hash, error) {
 
 func (d *BaseDriver) download(dest io.Writer) error {
 	logrus.Infof("Download %s", d.URL)
-	resp, err := http.Get(d.URL)
+
+	// for pandaria
+	client := http.DefaultClient
+	if strings.HasPrefix(d.URL, "https://localhost") {
+		transCfg := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: transCfg}
+	}
+
+	resp, err := client.Get(d.URL)
 	if err != nil {
 		return err
 	}
