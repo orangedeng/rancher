@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/rancher/norman/httperror"
+	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/auth/providers"
 	"github.com/rancher/rancher/pkg/auth/providers/activedirectory"
@@ -19,6 +20,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providers/saml"
 	"github.com/rancher/rancher/pkg/auth/tokens"
 	"github.com/rancher/rancher/pkg/auth/util"
+	"github.com/rancher/rancher/pkg/auth/util/aesutil"
 	"github.com/rancher/rancher/pkg/settings"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/apis/management.cattle.io/v3public"
@@ -192,6 +194,27 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 	if isLocalProvider {
 		if err = h.amt.LimitByUser(bLogin.Username, request); err != nil {
 			return v3.Token{}, "", err
+		// Pandaria: descrypt password
+		if parse.IsBrowser(request.Request, false) {
+			cookie, err := request.Request.Cookie("CSRF")
+			if err == http.ErrNoCookie {
+				logrus.Error("Can not get descrypt key for user password")
+				return v3.Token{}, "", httperror.NewAPIError(httperror.ServerError, "Can not get descrypt key for user password")
+			}
+			encrytedpwd := input.(*v3public.BasicLogin).Password
+			if encrytedpwd != "" {
+				aesd := aesutil.New()
+				pass, err := aesd.DecryptBytes(cookie.Value, []byte(encrytedpwd))
+				if err != nil {
+					logrus.Errorf("Descrypt user password error: %v", err)
+					return v3.Token{}, "", err
+				}
+				if len(pass) == 0 {
+					logrus.Errorf("Descrypt user password error, decrypted pass length is 0")
+					return v3.Token{}, "", httperror.NewAPIError(httperror.ServerError, "Descrypt user password error")
+				}
+				input.(*v3public.BasicLogin).Password = string(pass)
+			}
 		}
 	}
 

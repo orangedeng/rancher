@@ -1,14 +1,17 @@
 package authn
 
 import (
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rancher/norman/httperror"
+	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/store/transform"
 	"github.com/rancher/norman/types"
+	"github.com/rancher/rancher/pkg/auth/util/aesutil"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	client "github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -106,7 +109,37 @@ func HashPasswordString(password string) (string, error) {
 	return string(hash), nil
 }
 
+// Pandaria: descrypt password
+func decryptUserPassword(request *types.APIContext, data map[string]interface{}) error {
+	if parse.IsBrowser(request.Request, false) {
+		cookie, err := request.Request.Cookie("CSRF")
+		if err == http.ErrNoCookie {
+			logrus.Error("Can not get descrypt key for user password")
+			return err
+		}
+		encrytedpwd := data[client.UserFieldPassword].(string)
+		if encrytedpwd != "" {
+			aesd := aesutil.New()
+			pass, err := aesd.DecryptBytes(cookie.Value, []byte(encrytedpwd))
+			if err != nil {
+				logrus.Errorf("Descrypt user password error: %v", err)
+				return err
+			}
+			if len(pass) == 0 {
+				logrus.Errorf("Descrypt user password error, decrypted pass length is 0")
+				return errors.New("Descrypt user password error, decrypted pass length is 0")
+			}
+			data[client.UserFieldPassword] = string(pass)
+		}
+	}
+	return nil
+}
+
 func (s *userStore) Create(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}) (map[string]interface{}, error) {
+	if err := decryptUserPassword(apiContext, data); err != nil {
+		return nil, err
+	}
+
 	if err := hashPassword(data); err != nil {
 		return nil, err
 	}

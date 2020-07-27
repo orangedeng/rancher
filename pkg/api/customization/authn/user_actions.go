@@ -9,9 +9,11 @@ import (
 	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/auth/providerrefresh"
+	"github.com/rancher/rancher/pkg/auth/util/aesutil"
 	"github.com/rancher/rancher/pkg/settings"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	client "github.com/rancher/types/client/management/v3"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -78,12 +80,56 @@ func (h *Handler) changePassword(actionName string, action *types.Action, reques
 		return errors.New("can't find user")
 	}
 
+	// Pandaria: descrypt password
+	var needDescrypt = false
+	var descryptKey string
+	if parse.IsBrowser(request.Request, false) {
+		cookie, err := request.Request.Cookie("CSRF")
+		if err == http.ErrNoCookie {
+			logrus.Error("Can not get descrypt key for user password")
+			return errors.New("Can not get descrypt key for user password")
+		}
+		needDescrypt = true
+		descryptKey = cookie.Value
+	}
+
 	currentPass, ok := actionInput["currentPassword"].(string)
+	// Pandaria: descrypt password
+	if needDescrypt && currentPass != "" {
+		aesd := aesutil.New()
+		pass, err := aesd.DecryptBytes(descryptKey, []byte(currentPass))
+		if err != nil {
+			logrus.Errorf("Descrypt user password error: %v", err)
+			return err
+		}
+		if len(pass) == 0 {
+			logrus.Errorf("Descrypt user password error, decrypted pass length is 0")
+			return errors.New("Descrypt user password error, decrypted pass length is 0")
+		}
+		currentPass = string(pass)
+	}
+
 	if !ok || len(currentPass) == 0 {
 		return httperror.NewAPIError(httperror.InvalidBodyContent, "must specify current password")
 	}
 
 	newPass, ok := actionInput["newPassword"].(string)
+	// Pandaria: descrypt password
+	if needDescrypt && newPass != "" {
+		aesd := aesutil.New()
+		pass, err := aesd.DecryptBytes(descryptKey, []byte(newPass))
+		if err != nil {
+			logrus.Errorf("Descrypt user password error: %v", err)
+			return err
+		}
+		if len(pass) == 0 {
+			logrus.Errorf("Descrypt user password error, decrypted pass length is 0")
+			return errors.New("Descrypt user password error, decrypted pass length is 0")
+		}
+
+		newPass = string(pass)
+	}
+
 	if !ok || len(newPass) == 0 {
 		return httperror.NewAPIError(httperror.InvalidBodyContent, "invalid new password")
 	}
@@ -128,7 +174,34 @@ func (h *Handler) setPassword(actionName string, action *types.Action, request *
 		return err
 	}
 
+	var needDescrypt = false
+	var descryptKey string
+	if parse.IsBrowser(request.Request, false) {
+		cookie, err := request.Request.Cookie("CSRF")
+		if err == http.ErrNoCookie {
+			logrus.Error("Can not get descrypt key for user password")
+			return errors.New("Can not get descrypt key for user password")
+		}
+		needDescrypt = true
+		descryptKey = cookie.Value
+	}
+
 	newPass, ok := actionInput["newPassword"].(string)
+	// Pandaria: descrypt password
+	if needDescrypt && newPass != "" {
+		aesd := aesutil.New()
+		pass, err := aesd.DecryptBytes(descryptKey, []byte(newPass))
+		if err != nil {
+			logrus.Errorf("Descrypt user password error: %v", err)
+			return err
+		}
+		if len(pass) == 0 {
+			logrus.Errorf("Descrypt user password error, decrypted pass length is 0")
+			return errors.New("Descrypt user password error, decrypted pass length is 0")
+		}
+		newPass = string(pass)
+	}
+
 	if !ok || len(newPass) == 0 {
 		return errors.New("Invalid password")
 	}
