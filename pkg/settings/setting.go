@@ -58,6 +58,8 @@ var (
 	TLSCiphers                        = NewSetting("tls-ciphers", "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305")
 	UIBanners                         = NewSetting("ui-banners", "{}")
 	UIFeedBackForm                    = NewSetting("ui-feedback-form", "")
+	UIFooterText                      = NewSetting("ui-footer-text", "")
+	UIFooterURL                       = NewSetting("ui-footer-url", "")
 	UIIndex                           = NewSetting("ui-index", "https://releases.rancher.com/ui/latest-2.4/index.html")
 	UIPath                            = NewSetting("ui-path", "")
 	UIIssues                          = NewSetting("ui-issues", "")
