@@ -66,7 +66,7 @@ func addKontainerDrivers(management *config.ManagementContext) error {
 		"aliyunkubernetescontainerservice",
 		"https://localhost/assets/engine-drivers/kontainer-engine-driver-aliyun-linux",
 		"d03011f38d031f9ea34eea97f931df93cee2fe63ab96b29afd76b7ecf4701f52",
-		"https://drivers.rancher.cn/pandaria/ui/cluster-driver-aliyun/0.1.1/component.js",
+		"/assets/rancher-ui-driver-aliyun/component.js",
 		customActive,
 		"*.aliyuncs.com",
 	); err != nil {
@@ -88,7 +88,7 @@ func addKontainerDrivers(management *config.ManagementContext) error {
 		"huaweicontainercloudengine",
 		"https://localhost/assets/engine-drivers/kontainer-engine-driver-huawei-linux",
 		"0b6c1dfaa477a60a3bd9f8a60a55fcafd883866c2c5c387aec75b95d6ba81d45",
-		"",
+		"/assets/rancher-ui-driver-huawei/component.js",
 		customActive,
 		"*.myhuaweicloud.com",
 	); err != nil {
