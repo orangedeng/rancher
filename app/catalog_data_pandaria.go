@@ -24,5 +24,5 @@ func syncPandariaCatalogs(management *config.ManagementContext) error {
 	if strings.ToLower(settings.SystemCatalog.Get()) == "bundled" {
 		bundledMode = true
 	}
-	return doAddCatalogs(management, pandariaLibraryName, pandariaLibraryURL, desiredDefaultBranch, bundledMode)
+	return doAddCatalogs(management, pandariaLibraryName, pandariaLibraryURL, desiredDefaultBranch, "", bundledMode)
 }

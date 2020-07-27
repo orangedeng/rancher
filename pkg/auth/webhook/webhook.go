@@ -36,7 +36,7 @@ func (t *TokenReviewer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+tr.Spec.Token)
 	}
 
-	ok, user, groups, err := t.Authenticator.Authenticate(req)
+	ok, user, _, groups, err := t.Authenticator.Authenticate(req)
 	if err != nil {
 		handleErr(rw, err)
 		return

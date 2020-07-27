@@ -24,7 +24,7 @@ type Authenticator interface {
 
 func ToAuthMiddleware(a Authenticator) auth.Middleware {
 	f := func(req *http.Request) (user.Info, bool, error) {
-		authed, u, groups, err := a.Authenticate(req)
+		authed, u, _, groups, err := a.Authenticate(req)
 		return &user.DefaultInfo{
 			Name:   u,
 			UID:    u,

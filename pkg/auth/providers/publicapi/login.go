@@ -194,6 +194,7 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 	if isLocalProvider {
 		if err = h.amt.LimitByUser(bLogin.Username, request); err != nil {
 			return v3.Token{}, "", err
+		}
 		// Pandaria: descrypt password
 		if parse.IsBrowser(request.Request, false) {
 			cookie, err := request.Request.Cookie("CSRF")

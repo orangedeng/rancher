@@ -22,10 +22,10 @@ func NewImpersonatingAuth(next Authenticator, sar sar.SubjectAccessReview) Authe
 	}
 }
 
-func (h *impersonatingAuth) Authenticate(req *http.Request) (authed bool, user string, groups []string, err error) {
-	authed, user, groups, err = h.Authenticator.Authenticate(req)
+func (h *impersonatingAuth) Authenticate(req *http.Request) (authed bool, user string, userDisplayName string, groups []string, err error) {
+	authed, user, userDisplayName, groups, err = h.Authenticator.Authenticate(req)
 	if err != nil || !authed {
-		return authed, user, groups, err
+		return authed, user, userDisplayName, groups, err
 	}
 
 	var impersonateUser bool
@@ -49,9 +49,9 @@ func (h *impersonatingAuth) Authenticate(req *http.Request) (authed bool, user s
 		if reqUser != "" && reqUser != user {
 			canDo, err := h.sar.UserCanImpersonateUser(req, user, reqUser)
 			if err != nil {
-				return false, user, groups, err
+				return false, user, userDisplayName, groups, err
 			} else if !canDo {
-				return false, user, groups, errors.New("not allowed to impersonate")
+				return false, user, userDisplayName, groups, errors.New("not allowed to impersonate")
 			}
 			impersonateUser = true
 		}
@@ -59,9 +59,9 @@ func (h *impersonatingAuth) Authenticate(req *http.Request) (authed bool, user s
 		if len(reqGroup) > 0 && !groupsEqual(reqGroup, groups) {
 			canDo, err := h.sar.UserCanImpersonateGroups(req, user, reqGroup)
 			if err != nil {
-				return false, user, groups, err
+				return false, user, userDisplayName, groups, err
 			} else if !canDo {
-				return false, user, groups, errors.New("not allowed to impersonate")
+				return false, user, userDisplayName, groups, errors.New("not allowed to impersonate")
 			}
 			impersonateGroup = true
 		}
@@ -79,7 +79,7 @@ func (h *impersonatingAuth) Authenticate(req *http.Request) (authed bool, user s
 		groups = append(groups, k8sUser.AllAuthenticated)
 	}
 
-	return true, user, groups, nil
+	return true, user, userDisplayName, groups, nil
 }
 
 func groupsEqual(group1, group2 []string) bool {

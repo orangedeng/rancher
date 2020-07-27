@@ -16,14 +16,14 @@ type chainedAuth struct {
 	auths []Authenticator
 }
 
-func (c *chainedAuth) Authenticate(req *http.Request) (authed bool, user string, groups []string, err error) {
+func (c *chainedAuth) Authenticate(req *http.Request) (authed bool, user string, userDisplayName string, groups []string, err error) {
 	for _, auth := range c.auths {
-		authed, user, groups, err := auth.Authenticate(req)
+		authed, user, userDisplayName, groups, err := auth.Authenticate(req)
 		if err != nil || authed {
-			return authed, user, groups, err
+			return authed, user, userDisplayName, groups, err
 		}
 	}
-	return false, "", nil, nil
+	return false, "", "", nil, nil
 }
 
 func (c *chainedAuth) TokenFromRequest(req *http.Request) (*v3.Token, error) {
