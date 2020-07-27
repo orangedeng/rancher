@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rancher/rancher/pkg/api/customization/clusterregistrationtokens"
+	"github.com/rancher/rancher/pkg/api/customization/gpusharing"
 	"github.com/rancher/rancher/pkg/api/customization/vsphere"
 	managementapi "github.com/rancher/rancher/pkg/api/server"
 	"github.com/rancher/rancher/pkg/audit"
@@ -114,6 +115,9 @@ func Start(ctx context.Context, localClusterEnabled bool, scaledContext *config.
 	root.PathPrefix("/v1-release/release").Handler(channelserver.NewProxy(ctx))
 	root.NotFoundHandler = ui.UI(http.NotFoundHandler())
 	root.PathPrefix("/v1-saml").Handler(samlRoot)
+
+	//PANDARIA: GPU Sharing
+	root.Handle("/gpusharing/templates/{template}", http.HandlerFunc(gpusharing.TemplateHandler))
 
 	// UI
 	uiContent := responsewriter.NewMiddlewareChain(responsewriter.Gzip, responsewriter.DenyFrameOptions, responsewriter.CacheMiddleware("json", "js", "css")).Handler(ui.Content())

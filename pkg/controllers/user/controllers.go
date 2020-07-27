@@ -16,6 +16,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/endpoints"
 	"github.com/rancher/rancher/pkg/controllers/user/externalservice"
 	"github.com/rancher/rancher/pkg/controllers/user/globaldns"
+	"github.com/rancher/rancher/pkg/controllers/user/gpu"
 	"github.com/rancher/rancher/pkg/controllers/user/healthsyncer"
 	"github.com/rancher/rancher/pkg/controllers/user/helm"
 	"github.com/rancher/rancher/pkg/controllers/user/ingress"
@@ -75,6 +76,8 @@ func Register(ctx context.Context, cluster *config.UserContext, clusterRec *mana
 	ingresshostgen.Register(ctx, cluster.UserOnlyContext())
 	windows.Register(ctx, clusterRec, cluster)
 	nsserviceaccount.Register(ctx, cluster)
+
+	gpu.Register(ctx, cluster) // for pandaria gpu management
 
 	// register controller for API
 	cluster.APIAggregation.APIServices("").Controller()

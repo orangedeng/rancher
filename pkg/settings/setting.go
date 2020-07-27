@@ -73,8 +73,10 @@ var (
 	RotateCertsIfExpiringInDays       = NewSetting("rotate-certs-if-expiring-in-days", "7")  // 7 days
 	ClusterTemplateEnforcement        = NewSetting("cluster-template-enforcement", "false")
 	InitialDockerRootDir              = NewSetting("initial-docker-root-dir", "/var/lib/docker")
-	SystemCatalog                     = NewSetting("system-catalog", "external") // Options are 'external' or 'bundled'
-	IgnoreNodeName                    = NewSetting("ignore-node-name", "")       // nodes to ignore when syncing v1.node to v3.node
+	SystemCatalog                     = NewSetting("system-catalog", "external")                                                                                     // Options are 'external' or 'bundled'
+	IgnoreNodeName                    = NewSetting("ignore-node-name", "")                                                                                           // nodes to ignore when syncing v1.node to v3.node
+	SystemGPUMonitoringCatalogID      = NewSetting("system-gpu-monitoring-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-monitoring&version=0.0.2")  // Pandaria gpu management
+	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2`") // Pandaria gpu management
 )
 
 func init() {
