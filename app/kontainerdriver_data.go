@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/rancher/rancher/pkg/controllers/management/drivers/kontainerdriver"
@@ -164,6 +165,10 @@ func (c *driverCreator) add(name string) error {
 }
 
 func (c *driverCreator) addCustomDriver(name, url, checksum, uiURL string, active bool, domains ...string) error {
+	if runtime.GOARCH != "amd64" {
+		logrus.Infof("skipping kontainer driver %v as the Arch is %s", name, runtime.GOARCH)
+		return nil
+	}
 	logrus.Infof("adding kontainer driver %v", name)
 	_, err := c.driversLister.Get("", name)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"runtime"
 	"strings"
 
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -124,6 +125,10 @@ func addMachineDrivers(management *config.ManagementContext) error {
 }
 
 func addMachineDriver(name, url, uiURL, checksum string, whitelist []string, active, builtin bool, management *config.ManagementContext) error {
+	if !strings.HasPrefix(url, "local://") && runtime.GOARCH != "amd64" {
+		logrus.Infof("Skipping node driver %v as the Arch is %s", name, runtime.GOARCH)
+		return nil
+	}
 	lister := management.Management.NodeDrivers("").Controller().Lister()
 	cli := management.Management.NodeDrivers("")
 	m, _ := lister.Get("", name)
