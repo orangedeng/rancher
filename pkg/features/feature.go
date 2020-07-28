@@ -20,8 +20,8 @@ var (
 	UnsupportedStorageDrivers = newFeature(
 		"unsupported-storage-drivers",
 		"Allows the use of types for storage providers and provisioners that are not enabled by default.",
-		false,
-		true)
+		true,
+		true) // PANDARIA
 	IstioVirtualServiceUI = newFeature(
 		"istio-virtual-service-ui",
 		"Exposes a UI that enables users to create, read, update and delete virtual services and destination rules, which are traffic management features of Istio.",
@@ -37,6 +37,21 @@ var (
 		"Use new experimental proxy for Kubernetes API requests.",
 		false,
 		true)
+	ProjectMonitoringServiceUI = newFeature(
+		"project-monitoring-service-ui",
+		"Expose enable project monitoring UI and allow user to use monitoring with project level.",
+		true,
+		true) // PANDARIA
+	ProjectPipelineServiceUI = newFeature(
+		"project-pipeline-service-ui",
+		"Expose enable project pipeline UI and allow user to use pipeline with project level.",
+		true,
+		true) //PANDARIA
+	VirtaitechGPUServiceUI = newFeature(
+		"virtaitech-gpu-service-ui",
+		"Allows user to set vGpus reserved value.",
+		false,
+		true) //PANDARIA
 )
 
 type Feature struct {
