@@ -11,6 +11,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providerrefresh"
 	"github.com/rancher/rancher/pkg/auth/util/aesutil"
 	"github.com/rancher/rancher/pkg/settings"
+	corev1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	client "github.com/rancher/types/client/management/v3"
 	"github.com/sirupsen/logrus"
@@ -20,6 +21,9 @@ import (
 
 func (h *Handler) UserFormatter(apiContext *types.APIContext, resource *types.RawResource) {
 	resource.AddAction(apiContext, "setpassword")
+	// pandaria
+	resource.AddAction(apiContext, "setharborauth")
+	resource.AddAction(apiContext, "updateharborauth")
 	if canRefresh := h.userCanRefresh(apiContext); canRefresh {
 		resource.AddAction(apiContext, "refreshauthprovideraccess")
 	}
@@ -30,12 +34,20 @@ func (h *Handler) CollectionFormatter(apiContext *types.APIContext, collection *
 	if canRefresh := h.userCanRefresh(apiContext); canRefresh {
 		collection.AddAction(apiContext, "refreshauthprovideraccess")
 	}
+	// PANDARIA
+	if canSetHarbor := h.userCanConfigHarbor(apiContext); canSetHarbor {
+		collection.AddAction(apiContext, "saveharborconfig")
+	}
+	collection.AddAction(apiContext, "syncharboruser")
 }
 
 type Handler struct {
 	UserClient               v3.UserInterface
 	GlobalRoleBindingsClient v3.GlobalRoleBindingInterface
 	UserAuthRefresher        providerrefresh.UserAuthRefresher
+	SecretClient             corev1.SecretInterface    // PANDARIA
+	HarborClient             *http.Client              //PANDARIA
+	NamespaceClient          corev1.NamespaceInterface // PANDARIA
 }
 
 func (h *Handler) Actions(actionName string, action *types.Action, apiContext *types.APIContext) error {
@@ -50,6 +62,22 @@ func (h *Handler) Actions(actionName string, action *types.Action, apiContext *t
 		}
 	case "refreshauthprovideraccess":
 		if err := h.refreshAttributes(actionName, action, apiContext); err != nil {
+			return err
+		}
+	case "setharborauth":
+		if err := h.setHarborAuth(actionName, action, apiContext); err != nil {
+			return err
+		}
+	case "updateharborauth":
+		if err := h.updateHarborAuth(actionName, action, apiContext); err != nil {
+			return err
+		}
+	case "syncharboruser":
+		if err := h.syncHarborUser(actionName, action, apiContext); err != nil {
+			return err
+		}
+	case "saveharborconfig":
+		if err := h.saveHarborConfig(actionName, action, apiContext); err != nil {
 			return err
 		}
 	default:
@@ -241,4 +269,8 @@ func (h *Handler) refreshAttributes(actionName string, action *types.Action, req
 
 func (h *Handler) userCanRefresh(request *types.APIContext) bool {
 	return request.AccessControl.CanDo(v3.UserGroupVersionKind.Group, v3.UserResource.Name, "create", request, nil, request.Schema) == nil
+}
+
+func (h *Handler) userCanConfigHarbor(request *types.APIContext) bool {
+	return request.AccessControl.CanDo(v3.SettingGroupVersionKind.Group, v3.SettingResource.Name, "update", request, nil, request.Schema) == nil
 }

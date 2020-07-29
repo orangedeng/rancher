@@ -14,6 +14,7 @@ import (
 	"github.com/rancher/rancher/pkg/api/store/apiservice"
 	"github.com/rancher/rancher/pkg/api/store/cert"
 	"github.com/rancher/rancher/pkg/api/store/crd"
+	"github.com/rancher/rancher/pkg/api/store/harbor"
 	"github.com/rancher/rancher/pkg/api/store/hpa"
 	"github.com/rancher/rancher/pkg/api/store/ingress"
 	"github.com/rancher/rancher/pkg/api/store/namespace"
@@ -75,6 +76,9 @@ func Setup(ctx context.Context, mgmt *config.ScaledContext, clusterManager *clus
 	SetProjectID(schemas, clusterManager, k8sProxy)
 	StorageClass(schemas)
 	PersistentVolumeClaim(clusterManager, schemas)
+
+	// PANDARIA
+	HarborSecret(schemas, mgmt)
 
 	return nil
 }
@@ -154,6 +158,10 @@ func Secret(ctx context.Context, management *config.ScaledContext, schemas *type
 
 	schema = schemas.Schema(&schema.Version, "namespacedCertificate")
 	schema.Store = cert.Wrap(schema.Store)
+
+	// Pandaria: Add docker credential store for harbor type
+	schema = schemas.Schema(&schema.Version, client.NamespacedDockerCredentialType)
+	schema.Store = harbor.NewStore(management.Core.Secrets(""), schema.Store)
 }
 
 func Istio(schemas *types.Schemas) {
@@ -173,4 +181,9 @@ func HPA(schemas *types.Schemas, manager *clustermanager.Manager) {
 	schema.Store = apiservice.NewAPIServicFilterStoreFunc(manager, "autoscaling/v2beta2")(schema.Store)
 	schema.Store = nocondition.NewWrapper("initializing", "")(schema.Store)
 	schema.Store = hpa.NewIgnoreTransitioningErrorStore(schema.Store, 60*time.Second, "initializing")
+}
+
+func HarborSecret(schemas *types.Schemas, management *config.ScaledContext) {
+	schema := schemas.Schema(&schema.Version, client.DockerCredentialType)
+	schema.Store = harbor.NewStore(management.Core.Secrets(""), schema.Store)
 }

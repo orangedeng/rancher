@@ -3,6 +3,7 @@ package managementstored
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/rancher/norman/store/crd"
 	"github.com/rancher/norman/store/proxy"
@@ -459,6 +460,11 @@ func User(ctx context.Context, schemas *types.Schemas, management *config.Scaled
 		UserClient:               management.Management.Users(""),
 		GlobalRoleBindingsClient: management.Management.GlobalRoleBindings(""),
 		UserAuthRefresher:        providerrefresh.NewUserAuthRefresher(ctx, management),
+		SecretClient:             management.Core.Secrets(""),
+		NamespaceClient:          management.Core.Namespaces(""),
+		HarborClient: &http.Client{
+			Timeout: 15 * time.Second,
+		},
 	}
 
 	schema.Formatter = handler.UserFormatter

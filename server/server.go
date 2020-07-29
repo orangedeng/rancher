@@ -107,6 +107,7 @@ func Start(ctx context.Context, localClusterEnabled bool, scaledContext *config.
 	root.Handle("/v3/settings/ui-footer-url", rawAuthedAPIs).Methods(http.MethodGet)
 	root.Handle("/v3/settings/ui-banners", rawAuthedAPIs).Methods(http.MethodGet)
 	root.Handle("/v3/settings/ui-issues", rawAuthedAPIs).Methods(http.MethodGet)
+	root.Handle("/v3/settings/harbor-server-url", rawAuthedAPIs).Methods(http.MethodGet) // PANDARIA: allow get harbor-server-url setting
 	root.Handle("/v3/tokenreview", tokenReview).Methods(http.MethodPost)
 	root.PathPrefix("/metrics").Handler(metricsHandler)
 	root.PathPrefix("/v3").Handler(chainGzip.Handler(auditHandler))
@@ -157,6 +158,7 @@ func newAuthed(tokenAPI http.Handler, managementAPI http.Handler, k8sproxy http.
 	authed.Path("/meta/vsphere/{field}").Handler(vsphere.NewVsphereHandler(scaledContext))
 	authed.PathPrefix("/meta/proxy").Handler(newProxy(scaledContext))
 	authed.PathPrefix("/meta/auditlog").Handler(newAuditlogProxy(scaledContext)) // Pandaria
+	authed.PathPrefix("/meta/harbor").Handler(newHarborProxy(scaledContext))     // Pandaria
 	authed.PathPrefix("/meta").Handler(managementAPI)
 	authed.PathPrefix("/v3/identit").Handler(tokenAPI)
 	authed.PathPrefix("/v3/token").Handler(tokenAPI)
@@ -181,4 +183,8 @@ func newProxy(scaledContext *config.ScaledContext) http.Handler {
 
 func newAuditlogProxy(scaledContext *config.ScaledContext) http.Handler {
 	return httpproxy.NewAuditlogProxy("/auditlog/", whitelist.Proxy.Get, scaledContext)
+}
+
+func newHarborProxy(scaledContext *config.ScaledContext) http.Handler {
+	return httpproxy.NewHarborProxy("/harbor/", whitelist.Proxy.Get, scaledContext)
 }

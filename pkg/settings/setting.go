@@ -81,6 +81,9 @@ var (
 	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2`") // Pandaria gpu management
 	AuditlogServer                    = NewSetting("auditlog-server-url", "")                                                                                        //Pandria auditlog
 	UISessionLogoutMinutes            = NewSetting("ui-session-logout-minutes", "960")                                                                               // Pandaria logout minutes
+	HarborServerURL                   = NewSetting("harbor-server-url", "")                                                                                          // PANDARIA: harbor-server-url
+	HarborAdminAuth                   = NewSetting("harbor-admin-auth", "")                                                                                          // PANDARIA: harbor admin auth user
+	HarborAuthMode                    = NewSetting("harbor-auth-mode", "")                                                                                           // PANDARIA: harbor auth mode
 )
 
 func init() {
