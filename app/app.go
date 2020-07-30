@@ -18,6 +18,7 @@ import (
 	"github.com/rancher/rancher/pkg/features"
 	"github.com/rancher/rancher/pkg/jailer"
 	"github.com/rancher/rancher/pkg/metrics"
+	"github.com/rancher/rancher/pkg/metrics/pandaria" // PANDARIA
 	"github.com/rancher/rancher/pkg/rbac"
 	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/steve"
@@ -180,6 +181,11 @@ func New(ctx context.Context, clientConfig clientcmd.ClientConfig, cfg *Config) 
 
 	if os.Getenv("CATTLE_PROMETHEUS_METRICS") == "true" {
 		metrics.Register(ctx, scaledContext)
+	}
+
+	// PANDARIA: Add etcd backup metrics
+	if os.Getenv("PANDARIA_PROMETHEUS_METRICS") == "true" {
+		pandaria.Register(ctx, scaledContext)
 	}
 
 	if auditLogWriter != nil {

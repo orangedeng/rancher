@@ -20,6 +20,7 @@ import (
 	"github.com/rancher/kontainer-engine/drivers/rke"
 	"github.com/rancher/kontainer-engine/service"
 	"github.com/rancher/rancher/pkg/controllers/management/clusterprovisioner"
+	"github.com/rancher/rancher/pkg/metrics/pandaria" // PANDARIA
 	"github.com/rancher/rancher/pkg/rkedialerfactory"
 	"github.com/rancher/rancher/pkg/ticker"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -209,11 +210,14 @@ func (c *Controller) etcdSaveWithBackoff(b *v3.EtcdBackup) (runtime.Object, erro
 	}
 
 	snapshotName := clusterprovisioner.GetBackupFilename(b)
+	clusterName := ""
 	bObj, err := v3.BackupConditionCompleted.Do(b, func() (runtime.Object, error) {
 		cluster, err := c.clusterClient.Get(b.Spec.ClusterID, metav1.GetOptions{})
 		if err != nil {
 			return b, err
 		}
+		// PANDARIA
+		clusterName = cluster.Spec.DisplayName
 		var inErr error
 		err = wait.ExponentialBackoff(backoff, func() (bool, error) {
 			if inErr = c.backupDriver.ETCDSave(c.ctx, cluster.Name, kontainerDriver, cluster.Spec, snapshotName); inErr != nil {
@@ -228,8 +232,14 @@ func (c *Controller) etcdSaveWithBackoff(b *v3.EtcdBackup) (runtime.Object, erro
 	if err != nil {
 		v3.BackupConditionCompleted.False(bObj)
 		v3.BackupConditionCompleted.ReasonAndMessageFromError(bObj, err)
+		// PANDARIA: Add etcd backup failure metric
+		pandaria.SetEtcdBackupFailed(b.Spec.ClusterID, clusterName)
 		return bObj, err
 	}
+
+	// PANDARIA: Add etcd backup success metric
+	pandaria.SetEtcdBackupSuccess(b.Spec.ClusterID, clusterName)
+
 	return bObj, nil
 }
 
