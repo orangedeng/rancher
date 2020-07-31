@@ -34,7 +34,6 @@ ENV ALIYUN_ECS_UI_DRIVER_VERSION 0.1.3
 ENV ALIYUN_ACK_UI_DRIVER_VERSION 0.1.2	
 ENV HUAWEI_CCE_UI_DRIVER_VERSION 0.1.1
 ENV DOCKER_MACHINE_ALIYUN_VERSION v1.0.8
-ENV DOCKER_MACHINE_PINGAN_VERSION v0.3.0	
 ENV KONTAINER_ENGINE_ALIYUN_VERSION v0.2.7	
 ENV KONTAINER_ENGINE_BAIDU_VERSION v0.2.0	
 ENV KONTAINER_ENGINE_TENCENT_VERSION v0.3.0	
@@ -65,8 +64,7 @@ RUN curl -sLf https://github.com/rancher/machine/releases/download/${CATTLE_MACH
     curl -LO https://github.com/cnrancher/kontainer-engine-driver-aliyun/releases/download/${KONTAINER_ENGINE_ALIYUN_VERSION}/kontainer-engine-driver-aliyun-linux && \
     curl -LO https://github.com/cnrancher/kontainer-engine-driver-baidu/releases/download/${KONTAINER_ENGINE_BAIDU_VERSION}/kontainer-engine-driver-baidu-linux && \
     curl -LO https://github.com/cnrancher/kontainer-engine-driver-tencent/releases/download/${KONTAINER_ENGINE_TENCENT_VERSION}/kontainer-engine-driver-tencent-linux && \
-    curl -LO https://github.com/rancher/kontainer-engine-driver-huawei/releases/download/${KONTAINER_ENGINE_HUAWEI_VERSION}/kontainer-engine-driver-huawei-linux && \
-    curl -LO https://github.com/cnrancher/docker-machine-driver-pingan/releases/download/${DOCKER_MACHINE_PINGAN_VERSION}/docker-machine-driver-pinganyunecs-linux.tgz && \
+    curl -LO https://github.com/cnrancher/kontainer-engine-driver-huawei/releases/download/${KONTAINER_ENGINE_HUAWEI_VERSION}/kontainer-engine-driver-huawei-linux && \
     curl -LO https://github.com/cnrancher/docker-machine-driver-aliyunecs/releases/download/${DOCKER_MACHINE_ALIYUN_VERSION}/docker-machine-driver-aliyunecs-linux-amd64.tgz && \
     popd
 
