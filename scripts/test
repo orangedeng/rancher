@@ -27,7 +27,9 @@ cleanup()
 go test -cover -tags=test .././...
 
 if [ ${ARCH} == arm64 ]; then
-    export ETCD_UNSUPPORTED_ARCH=arm64
+    # export ETCD_UNSUPPORTED_ARCH=arm64
+    # ignore integration tests on arm64
+    exit 0
 fi
 
 echo Starting rancher server
@@ -42,5 +44,5 @@ done
 echo Running tests
 
 cd $(dirname $0)/../tests/integration
-tox -- -m "not nonparallel" -n $(nproc)
+tox -- -m "not nonparallel" -n $(expr $(nproc) / 2)
 tox -- -m nonparallel
