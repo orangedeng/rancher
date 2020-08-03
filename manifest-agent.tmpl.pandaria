@@ -1,29 +1,29 @@
-image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-{{build.number}}-head{{/if}}
+image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-{{build.number}}-head{{/if}}
 manifests:
   -
-    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-head{{/if}}-linux-amd64
+    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-head{{/if}}-linux-amd64
     platform:
       architecture: amd64
       os: linux
   -
-    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-head{{/if}}-linux-arm64
+    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-head{{/if}}-linux-arm64
     platform:
       architecture: arm64
       os: linux
   -
-    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-head{{/if}}-windows-1809
+    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-head{{/if}}-windows-1809
     platform:
       architecture: amd64
       os: windows
       version: 1809
   -
-    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-head{{/if}}-windows-1903
+    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-head{{/if}}-windows-1903
     platform:
       architecture: amd64
       os: windows
       version: 1903
   -
-    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}{{replace "release/" "" build.branch }}-head{{/if}}-windows-1909
+    image: cnrancher/rancher-agent:{{#if build.tag}}{{build.tag}}{{else}}v2.4-head{{/if}}-windows-1909
     platform:
       architecture: amd64
       os: windows
