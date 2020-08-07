@@ -1,10 +1,16 @@
 package saml
 
 import (
+	"bytes"
+	"compress/flate"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/beevik/etree"
 
 	"github.com/crewjam/saml"
 	"github.com/crewjam/saml/samlsp"
@@ -91,6 +97,8 @@ func (s *Provider) TransformToAuthProvider(authConfig map[string]interface{}) (m
 		p[publicclient.ADFSProviderFieldRedirectURL] = formSamlRedirectURLFromMap(authConfig, s.name)
 	case KeyCloakName:
 		p[publicclient.KeyCloakProviderFieldRedirectURL] = formSamlRedirectURLFromMap(authConfig, s.name)
+		// PANDARIA Add keyCloak logoutURL
+		p[publicclient.KeyCloakProviderFieldLogoutURL] = s.getSamlLogoutURL()
 	case OKTAName:
 		p[publicclient.OKTAProviderFieldRedirectURL] = formSamlRedirectURLFromMap(authConfig, s.name)
 	case ShibbolethName:
@@ -296,6 +304,32 @@ func (s *Provider) isThisUserMe(me v3.Principal, other v3.Principal) bool {
 		return true
 	}
 	return false
+}
+
+// getSamlLogoutURL will return SAML logout url to UI (for PANDARIA)
+func (s *Provider) getSamlLogoutURL() string {
+	sp := ServiceProvider{
+		s.serviceProvider,
+	}
+	req, _ := sp.MakeRedirectLogoutRequest("")
+	samlBuffer := &bytes.Buffer{}
+	samlEncoder := base64.NewEncoder(base64.StdEncoding, samlBuffer)
+	samlEncoderWriter, _ := flate.NewWriter(samlEncoder, flate.BestCompression)
+	doc := etree.NewDocument()
+	doc.SetRoot(req.Element())
+	if _, err := doc.WriteTo(samlEncoderWriter); err != nil {
+		logrus.Errorf("Error occurred when serializes an XML document into the writer:%s", err.Error())
+		return ""
+	}
+	samlEncoder.Close()
+	samlEncoderWriter.Close()
+	rv, _ := url.Parse(req.Destination)
+
+	query := rv.Query()
+	query.Set("SAMLRequest", string(samlBuffer.Bytes()))
+
+	rv.RawQuery = query.Encode()
+	return rv.String()
 }
 
 func (s *Provider) CanAccessWithGroupProviders(userPrincipalID string, groupPrincipals []v3.Principal) (bool, error) {
