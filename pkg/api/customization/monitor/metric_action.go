@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
+	"github.com/rancher/prometheus-auth/pkg/prom"
 	"github.com/rancher/rancher/pkg/clustermanager"
+	"github.com/rancher/rancher/pkg/controllers/user/alert/configsyncer"
 	monitorutil "github.com/rancher/rancher/pkg/monitoring"
 	"github.com/rancher/rancher/pkg/ref"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -72,7 +75,25 @@ func (h *MetricHandler) Action(actionName string, action *types.Action, apiConte
 				return fmt.Errorf("clusterName is empty")
 			}
 
+			clusterContext, err := h.clustermanager.UserContext(clusterName)
+			if err != nil {
+				return err
+			}
+
+			projectNs, err := configsyncer.GetProjectNamespace(clusterContext.Core.Namespaces("").Controller().Lister())
+			if err != nil {
+				return err
+			}
+
+			nsSet := projectNs[queryMetricInput.ProjectName]
+			expr, err := parser.ParseExpr(queryMetricInput.CommonQueryMetricInput.Expr)
+			if err != nil {
+				return fmt.Errorf("failed to parse raw expression %s to prometheus expression, %v", queryMetricInput.CommonQueryMetricInput.Expr, err)
+			}
+
+			hjkExpr := prom.ModifyExpression(expr, nsSet)
 			comm = queryMetricInput.CommonQueryMetricInput
+			comm.Expr = hjkExpr
 		}
 
 		start, end, step, err := parseTimeParams(comm.From, comm.To, comm.Interval)

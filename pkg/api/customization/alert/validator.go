@@ -3,6 +3,7 @@ package alert
 import (
 	"fmt"
 
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
@@ -11,8 +12,6 @@ import (
 	"github.com/rancher/rancher/pkg/ref"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	v3client "github.com/rancher/types/client/management/v3"
-
-	"github.com/prometheus/prometheus/promql"
 )
 
 const monitoringEnabled = "MonitoringEnabled"
@@ -90,7 +89,7 @@ func isClusterMonitoringEnabled(resquest *types.APIContext, clusterID string) er
 
 func isValidExpr(metricRule *v3.MetricRule) error {
 	expr := manager.GetExpr(metricRule.Expression, metricRule.Comparison, metricRule.ThresholdValue)
-	if _, err := promql.ParseExpr(expr); err != nil {
+	if _, err := parser.ParseExpr(expr); err != nil {
 		return fmt.Errorf("expression %s is invalid, %v", expr, err)
 	}
 	return nil

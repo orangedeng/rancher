@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
 	"github.com/rancher/norman/controller"
+	"github.com/rancher/prometheus-auth/pkg/data"
+	"github.com/rancher/prometheus-auth/pkg/prom"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	alertconfig "github.com/rancher/rancher/pkg/controllers/user/alert/config"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/deployer"
@@ -25,12 +27,17 @@ import (
 	projectv3 "github.com/rancher/types/apis/project.cattle.io/v3"
 	"github.com/rancher/types/config"
 
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	projectIDKey = "field.cattle.io/projectId"
 )
 
 var (
@@ -69,6 +76,7 @@ func NewConfigSyncer(ctx context.Context, cluster *config.UserContext, alertMana
 		apps:                    cluster.Management.Project.Apps(metav1.NamespaceAll),
 		appLister:               cluster.Management.Project.Apps(metav1.NamespaceAll).Controller().Lister(),
 		secretsGetter:           cluster.Core,
+		nsLister:                cluster.Core.Namespaces("").Controller().Lister(),
 		clusterAlertGroupLister: cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
 		projectAlertGroupLister: cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
 		clusterAlertRuleLister:  cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
@@ -86,6 +94,7 @@ type ConfigSyncer struct {
 	apps                    projectv3.AppInterface
 	appLister               projectv3.AppLister
 	secretsGetter           v1.SecretsGetter
+	nsLister                v1.NamespaceLister
 	projectAlertGroupLister v3.ProjectAlertGroupLister
 	clusterAlertGroupLister v3.ClusterAlertGroupLister
 	projectAlertRuleLister  v3.ProjectAlertRuleLister
@@ -204,7 +213,7 @@ func (d *ConfigSyncer) sync() error {
 				if _, ok := pAlertsMap[projectName]; !ok {
 					pAlertsMap[projectName] = make(map[string][]*v3.ProjectAlertRule)
 				}
-				pAlertsMap[projectName][alert.Spec.GroupName] = append(pAlertsMap[projectName][alert.Spec.GroupName], alert)
+				pAlertsMap[projectName][alert.Spec.GroupName] = append(pAlertsMap[projectName][alert.Spec.GroupName], alert.DeepCopy())
 			}
 		}
 	}
@@ -280,6 +289,10 @@ func (d *ConfigSyncer) getNotifier(id string, notifiers []*v3.Notifier) *v3.Noti
 }
 
 func (d *ConfigSyncer) addProjectAlert2Operator(clusterDisplayName string, projectGroups map[string]map[string][]*v3.ProjectAlertRule, keys []string) error {
+	projectNsSet, err := GetProjectNamespace(d.nsLister)
+	if err != nil {
+		return err
+	}
 	for _, projectName := range keys {
 		groupRules := projectGroups[projectName]
 		_, namespace := monitorutil.ProjectMonitoringInfo(projectName)
@@ -299,6 +312,18 @@ func (d *ConfigSyncer) addProjectAlert2Operator(clusterDisplayName string, proje
 			ruleGroup := d.operatorCRDManager.GetRuleGroup(groupID)
 			for _, alertRule := range alertRules {
 				if alertRule.Spec.MetricRule != nil {
+					nsSet, ok := projectNsSet[alertRule.Spec.ProjectName]
+					if !ok {
+						continue
+					}
+
+					expr, err := parser.ParseExpr(alertRule.Spec.MetricRule.Expression)
+					if err != nil {
+						return errors.Wrapf(err, "failed to parse raw expression %s to prometheus expression", alertRule.Spec.MetricRule.Expression)
+					}
+
+					hjkExpr := prom.ModifyExpression(expr, nsSet)
+					alertRule.Spec.MetricRule.Expression = hjkExpr
 					ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
 					promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, projectDisplayName, alertRule.Spec.MetricRule)
 					d.operatorCRDManager.AddRule(ruleGroup, promRule)
@@ -813,4 +838,33 @@ func (d *ConfigSyncer) syncReceiver(notifiers []*v3.Notifier, cAlertGroupsMap ma
 	}
 
 	return nil
+}
+
+func GetProjectNamespace(nsLister v1.NamespaceLister) (map[string]data.Set, error) {
+	projectNsSet := map[string]data.Set{}
+	namespaces, err := nsLister.List("", labels.NewSelector())
+	if err != nil {
+		return projectNsSet, err
+	}
+
+	for _, n := range namespaces {
+		if n.Annotations == nil {
+			continue
+		}
+
+		projectName, ok := n.Annotations[projectIDKey]
+		if !ok {
+			continue
+		}
+
+		nsSet, ok := projectNsSet[projectName]
+		if !ok {
+			nsSet = data.Set{}
+		}
+
+		nsSet[n.Name] = struct{}{}
+		projectNsSet[projectName] = nsSet
+	}
+
+	return projectNsSet, nil
 }
