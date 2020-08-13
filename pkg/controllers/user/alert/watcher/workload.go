@@ -48,6 +48,7 @@ type WorkloadWatcher struct {
 	daemonsetLister             appsv1.DaemonSetLister
 	deploymentLister            appsv1.DeploymentLister
 	statefulsetLister           appsv1.StatefulSetLister
+	projectAlertGroupLister     v3.ProjectAlertGroupLister
 }
 
 func StartWorkloadWatcher(ctx context.Context, cluster *config.UserContext, manager *manager.AlertManager) {
@@ -71,6 +72,7 @@ func StartWorkloadWatcher(ctx context.Context, cluster *config.UserContext, mana
 		daemonsetLister:             cluster.Apps.DaemonSets(metav1.NamespaceAll).Controller().Lister(),
 		deploymentLister:            cluster.Apps.Deployments(metav1.NamespaceAll).Controller().Lister(),
 		statefulsetLister:           cluster.Apps.StatefulSets(metav1.NamespaceAll).Controller().Lister(),
+		projectAlertGroupLister:     cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
 	}
 
 	go d.watch(ctx, syncInterval)
@@ -102,8 +104,17 @@ func (w *WorkloadWatcher) watchRule() error {
 		}
 	}
 
+	groupsMap, err := getProjectAlertGroupsMap(w.clusterName, w.projectAlertGroupLister)
+	if err != nil {
+		return err
+	}
+
 	for _, alert := range pAlerts {
 		if alert.Status.AlertState == "inactive" || alert.Spec.WorkloadRule == nil {
+			continue
+		}
+
+		if group, ok := groupsMap[alert.Spec.GroupName]; !ok || len(group.Spec.Recipients) == 0 {
 			continue
 		}
 

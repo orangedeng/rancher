@@ -22,25 +22,27 @@ import (
 )
 
 type NodeWatcher struct {
-	machineLister          v3.NodeLister
-	nodeLister             v1.NodeLister
-	clusterAlertRule       v3.ClusterAlertRuleInterface
-	clusterAlertRuleLister v3.ClusterAlertRuleLister
-	alertManager           *manager.AlertManager
-	clusterName            string
-	clusterLister          v3.ClusterLister
+	machineLister           v3.NodeLister
+	nodeLister              v1.NodeLister
+	clusterAlertRule        v3.ClusterAlertRuleInterface
+	clusterAlertRuleLister  v3.ClusterAlertRuleLister
+	clusterAlertGroupLister v3.ClusterAlertGroupLister
+	alertManager            *manager.AlertManager
+	clusterName             string
+	clusterLister           v3.ClusterLister
 }
 
 func StartNodeWatcher(ctx context.Context, cluster *config.UserContext, manager *manager.AlertManager) {
 	clusterAlerts := cluster.Management.Management.ClusterAlertRules(cluster.ClusterName)
 	n := &NodeWatcher{
-		machineLister:          cluster.Management.Management.Nodes(cluster.ClusterName).Controller().Lister(),
-		nodeLister:             cluster.Core.Nodes("").Controller().Lister(),
-		clusterAlertRule:       clusterAlerts,
-		clusterAlertRuleLister: clusterAlerts.Controller().Lister(),
-		alertManager:           manager,
-		clusterName:            cluster.ClusterName,
-		clusterLister:          cluster.Management.Management.Clusters("").Controller().Lister(),
+		machineLister:           cluster.Management.Management.Nodes(cluster.ClusterName).Controller().Lister(),
+		nodeLister:              cluster.Core.Nodes("").Controller().Lister(),
+		clusterAlertRule:        clusterAlerts,
+		clusterAlertRuleLister:  clusterAlerts.Controller().Lister(),
+		clusterAlertGroupLister: cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
+		alertManager:            manager,
+		clusterName:             cluster.ClusterName,
+		clusterLister:           cluster.Management.Management.Clusters("").Controller().Lister(),
 	}
 	go n.watch(ctx, syncInterval)
 }
@@ -59,6 +61,11 @@ func (w *NodeWatcher) watchRule() error {
 		return nil
 	}
 
+	groupsMap, err := getClusterAlertGroupsMap(w.clusterAlertGroupLister)
+	if err != nil {
+		return err
+	}
+
 	clusterAlerts, err := w.clusterAlertRuleLister.List("", labels.NewSelector())
 	if err != nil {
 		return err
@@ -71,6 +78,10 @@ func (w *NodeWatcher) watchRule() error {
 
 	for _, alert := range clusterAlerts {
 		if alert.Status.AlertState == "inactive" || alert.Spec.NodeRule == nil {
+			continue
+		}
+
+		if group, ok := groupsMap[alert.Spec.GroupName]; !ok || len(group.Spec.Recipients) == 0 {
 			continue
 		}
 

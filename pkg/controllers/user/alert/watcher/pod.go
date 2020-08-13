@@ -29,12 +29,13 @@ type PodWatcher struct {
 	podLister               v1.PodLister
 	alertManager            *manager.AlertManager
 	projectAlertPolicies    v3.ProjectAlertRuleInterface
-	projectAlertGroupLister v3.ProjectAlertRuleLister
+	projectAlertRuleLister  v3.ProjectAlertRuleLister
 	clusterName             string
 	podRestartTrack         sync.Map
 	clusterLister           v3.ClusterLister
 	projectLister           v3.ProjectLister
 	workloadFetcher         workloadFetcher
+	projectAlertGroupLister v3.ProjectAlertGroupLister
 }
 
 type restartTrack struct {
@@ -51,13 +52,14 @@ func StartPodWatcher(ctx context.Context, cluster *config.UserContext, manager *
 	podWatcher := &PodWatcher{
 		podLister:               cluster.Core.Pods("").Controller().Lister(),
 		projectAlertPolicies:    projectAlertPolicies,
-		projectAlertGroupLister: projectAlertPolicies.Controller().Lister(),
+		projectAlertRuleLister:  projectAlertPolicies.Controller().Lister(),
 		alertManager:            manager,
 		clusterName:             cluster.ClusterName,
 		podRestartTrack:         sync.Map{},
 		clusterLister:           cluster.Management.Management.Clusters("").Controller().Lister(),
 		projectLister:           cluster.Management.Management.Projects(cluster.ClusterName).Controller().Lister(),
 		workloadFetcher:         workloadFetcher,
+		projectAlertGroupLister: cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
 	}
 
 	projectAlertLifecycle := &ProjectAlertLifecycle{
@@ -99,7 +101,7 @@ func (w *PodWatcher) watchRule() error {
 		return nil
 	}
 
-	projectAlerts, err := w.projectAlertGroupLister.List("", labels.NewSelector())
+	projectAlerts, err := w.projectAlertRuleLister.List("", labels.NewSelector())
 	if err != nil {
 		return err
 	}
@@ -111,8 +113,17 @@ func (w *PodWatcher) watchRule() error {
 		}
 	}
 
+	groupsMap, err := getProjectAlertGroupsMap(w.clusterName, w.projectAlertGroupLister)
+	if err != nil {
+		return err
+	}
+
 	for _, alert := range pAlerts {
 		if alert.Status.AlertState == "inactive" || alert.Spec.PodRule == nil {
+			continue
+		}
+
+		if group, ok := groupsMap[alert.Spec.GroupName]; !ok || len(group.Spec.Recipients) == 0 {
 			continue
 		}
 
@@ -340,4 +351,20 @@ func (w *PodWatcher) getWorkloadInfo(pod *corev1.Pod) (string, error) {
 		return "", errors.Wrap(err, "Failed to get workload info for alert")
 	}
 	return workloadName, nil
+}
+
+func getProjectAlertGroupsMap(clusterName string, projectAlertGroupLister v3.ProjectAlertGroupLister) (map[string]*v3.ProjectAlertGroup, error) {
+	allGroups, err := projectAlertGroupLister.List("", labels.NewSelector())
+	if err != nil {
+		return nil, err
+	}
+
+	groupMap := map[string]*v3.ProjectAlertGroup{}
+	for _, v := range allGroups {
+		groupID := common.GetGroupID(v.Namespace, v.Name)
+		if controller.ObjectInCluster(clusterName, v) {
+			groupMap[groupID] = v
+		}
+	}
+	return groupMap, nil
 }

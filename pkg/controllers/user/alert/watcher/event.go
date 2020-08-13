@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
@@ -21,14 +22,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+var (
+	// Kubernetes uses list/watch to update cache, it uses watch timeout to avoid situations of hanging watchers. Watchers that do not
+	// receive any events within the timeout window will be stopped, the timeout is a random time between 5-10 minutes.
+	// If the ListAndWatch has been terminated, it will not immediately restart, but wait for a backoff time provided by the ExponentialBackoffManager.
+	// After the ListAndWatch started next time, lister will load all event and update the cache to a new version,
+	// at the time lister update the cache version for all events, we will receive historical events in this handler,
+	// ignoreEventPeriod use for ignoring events that lastTimestamp is two minutes ago, then prevent the user to receive old events.
+	ignoreEventPeriod = 2 * time.Minute
+)
+
 type EventWatcher struct {
-	eventLister            v1.EventLister
-	clusterAlertRuleLister v3.ClusterAlertRuleLister
-	alertManager           *manager.AlertManager
-	clusterName            string
-	clusterLister          v3.ClusterLister
-	workloadFetcher        workloadFetcher
-	podLister              v1.PodLister
+	eventLister             v1.EventLister
+	clusterAlertRuleLister  v3.ClusterAlertRuleLister
+	clusterAlertGroupLister v3.ClusterAlertGroupLister
+	alertManager            *manager.AlertManager
+	clusterName             string
+	clusterLister           v3.ClusterLister
+	workloadFetcher         workloadFetcher
+	podLister               v1.PodLister
 }
 
 func StartEventWatcher(ctx context.Context, cluster *config.UserContext, manager *manager.AlertManager) {
@@ -38,13 +50,14 @@ func StartEventWatcher(ctx context.Context, cluster *config.UserContext, manager
 	}
 
 	eventWatcher := &EventWatcher{
-		eventLister:            events.Controller().Lister(),
-		clusterAlertRuleLister: cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
-		alertManager:           manager,
-		clusterName:            cluster.ClusterName,
-		clusterLister:          cluster.Management.Management.Clusters("").Controller().Lister(),
-		workloadFetcher:        workloadFetcher,
-		podLister:              cluster.Core.Pods(metav1.NamespaceAll).Controller().Lister(),
+		eventLister:             events.Controller().Lister(),
+		clusterAlertRuleLister:  cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
+		clusterAlertGroupLister: cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
+		alertManager:            manager,
+		clusterName:             cluster.ClusterName,
+		clusterLister:           cluster.Management.Management.Clusters("").Controller().Lister(),
+		workloadFetcher:         workloadFetcher,
+		podLister:               cluster.Core.Pods(metav1.NamespaceAll).Controller().Lister(),
 	}
 
 	events.AddHandler(ctx, "cluster-event-alert-watcher", eventWatcher.Sync)
@@ -59,6 +72,15 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 		return nil, nil
 	}
 
+	if time.Now().Sub(obj.LastTimestamp.Time) > ignoreEventPeriod {
+		return obj, nil
+	}
+
+	groupsMap, err := getClusterAlertGroupsMap(l.clusterAlertGroupLister)
+	if err != nil {
+		return nil, err
+	}
+
 	clusterAlerts, err := l.clusterAlertRuleLister.List("", labels.NewSelector())
 	if err != nil {
 		return nil, err
@@ -68,6 +90,11 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 		if alert.Status.AlertState == "inactive" || alert.Status.AlertState == "muted" || alert.Spec.EventRule == nil {
 			continue
 		}
+
+		if group, ok := groupsMap[alert.Spec.GroupName]; !ok || len(group.Spec.Recipients) == 0 {
+			continue
+		}
+
 		if alert.Spec.EventRule.EventType == obj.Type && alert.Spec.EventRule.ResourceKind == obj.InvolvedObject.Kind {
 			ruleID := common.GetRuleID(alert.Spec.GroupName, alert.Name)
 
@@ -168,4 +195,18 @@ func (w *workloadFetcher) getWorkloadName(namespace, name, kind string) (string,
 	}
 
 	return w.getWorkloadName(refWorkload.Namespace, refWorkload.Name, refWorkload.Kind)
+}
+
+func getClusterAlertGroupsMap(clusterAlertGroupLister v3.ClusterAlertGroupLister) (map[string]*v3.ClusterAlertGroup, error) {
+	allGroups, err := clusterAlertGroupLister.List("", labels.NewSelector())
+	if err != nil {
+		return nil, err
+	}
+
+	groupMap := map[string]*v3.ClusterAlertGroup{}
+	for _, v := range allGroups {
+		groupID := common.GetGroupID(v.Namespace, v.Name)
+		groupMap[groupID] = v
+	}
+	return groupMap, nil
 }

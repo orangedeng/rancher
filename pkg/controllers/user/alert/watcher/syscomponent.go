@@ -20,21 +20,23 @@ import (
 )
 
 type SysComponentWatcher struct {
-	componentStatuses      v1.ComponentStatusInterface
-	clusterAlertRuleLister v3.ClusterAlertRuleLister
-	alertManager           *manager.AlertManager
-	clusterName            string
-	clusterLister          v3.ClusterLister
+	componentStatuses       v1.ComponentStatusInterface
+	clusterAlertRuleLister  v3.ClusterAlertRuleLister
+	clusterAlertGroupLister v3.ClusterAlertGroupLister
+	alertManager            *manager.AlertManager
+	clusterName             string
+	clusterLister           v3.ClusterLister
 }
 
 func StartSysComponentWatcher(ctx context.Context, cluster *config.UserContext, manager *manager.AlertManager) {
 
 	s := &SysComponentWatcher{
-		componentStatuses:      cluster.Core.ComponentStatuses(""),
-		clusterAlertRuleLister: cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
-		alertManager:           manager,
-		clusterName:            cluster.ClusterName,
-		clusterLister:          cluster.Management.Management.Clusters("").Controller().Lister(),
+		componentStatuses:       cluster.Core.ComponentStatuses(""),
+		clusterAlertRuleLister:  cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
+		clusterAlertGroupLister: cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
+		alertManager:            manager,
+		clusterName:             cluster.ClusterName,
+		clusterLister:           cluster.Management.Management.Clusters("").Controller().Lister(),
 	}
 	go s.watch(ctx, syncInterval)
 }
@@ -53,6 +55,11 @@ func (w *SysComponentWatcher) watchRule() error {
 		return nil
 	}
 
+	groupsMap, err := getClusterAlertGroupsMap(w.clusterAlertGroupLister)
+	if err != nil {
+		return err
+	}
+
 	clusterAlerts, err := w.clusterAlertRuleLister.List("", labels.NewSelector())
 	if err != nil {
 		return err
@@ -66,6 +73,11 @@ func (w *SysComponentWatcher) watchRule() error {
 		if rule.Status.AlertState == "inactive" || rule.Spec.SystemServiceRule == nil {
 			continue
 		}
+
+		if group, ok := groupsMap[rule.Spec.GroupName]; !ok || len(group.Spec.Recipients) == 0 {
+			continue
+		}
+
 		if rule.Spec.SystemServiceRule != nil {
 			w.checkComponentHealthy(statuses, rule)
 		}
