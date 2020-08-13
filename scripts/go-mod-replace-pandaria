@@ -11,7 +11,7 @@ gopkg.in/cas.v2@v2.2.0
 
 REPLACE="
 github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible
-github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20200722034816-8156842814a2
+github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20200814032132-98fb7dcec977
 github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200730081152-cb2d9d4b884d
 "
 
