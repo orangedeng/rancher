@@ -2,8 +2,10 @@ package notifiers
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/config"
@@ -39,6 +42,11 @@ type wechatToken struct {
 type wechatResponse struct {
 	Code  int    `json:"code"`
 	Error string `json:"error"`
+}
+
+type dingtalkResponse struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
 }
 
 func SendMessage(notifier *v3.Notifier, recipient string, msg *Message, dialer dialer.Dialer) error {
@@ -72,6 +80,18 @@ func SendMessage(notifier *v3.Notifier, recipient string, msg *Message, dialer d
 
 	if notifier.Spec.WebhookConfig != nil {
 		return TestWebhook(notifier.Spec.WebhookConfig.URL, msg.Content, notifier.Spec.WebhookConfig.HTTPClientConfig, dialer)
+	}
+
+	if notifier.Spec.DingtalkConfig != nil {
+		return TestDingtalk(notifier.Spec.DingtalkConfig.URL, notifier.Spec.DingtalkConfig.Secret, msg.Content, notifier.Spec.DingtalkConfig.HTTPClientConfig, dialer)
+	}
+
+	if notifier.Spec.MSTeamsConfig != nil {
+		return TestMicrosoftTeams(notifier.Spec.MSTeamsConfig.URL, msg.Content, notifier.Spec.MSTeamsConfig.HTTPClientConfig, dialer)
+	}
+
+	if notifier.Spec.AliyunSMSConfig != nil {
+		return TestAliyunSMS(notifier.Spec.AliyunSMSConfig, msg.Content)
 	}
 
 	return errors.New("Notifier not configured")
@@ -207,6 +227,121 @@ func TestWechat(secret, agent, corp, receiverType, apiURL, receiver, msg string,
 
 	if weResp.Code != 0 {
 		return fmt.Errorf("Failed to send Wechat message. %s", weResp.Error)
+	}
+
+	return nil
+}
+
+func TestDingtalk(url, secret, msg string, cfg *v3.HTTPClientConfig, dialer dialer.Dialer) error {
+	if msg == "" {
+		msg = "Dingtalk setting validated"
+	}
+
+	content := `{"msgtype": "text",
+		"text": {"content": "` + msg + `"},
+		"at": {"isAtAll": true}
+	}`
+
+	url = getDingtalkURL(url, secret)
+
+	client, err := NewClientFromConfig(cfg, dialer)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(content))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", contentTypeJSON)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("HTTP status code is %d, not included in the 2xx success HTTP status codes", resp.StatusCode)
+	}
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var dtResp dingtalkResponse
+	if err := json.Unmarshal(respBytes, &dtResp); err != nil {
+		return err
+	}
+
+	if dtResp.Errcode != 0 {
+		return fmt.Errorf("Failed to send Dingtalk message. %s", dtResp.Errmsg)
+	}
+
+	return nil
+}
+
+func TestMicrosoftTeams(url, msg string, cfg *v3.HTTPClientConfig, dialer dialer.Dialer) error {
+	if msg == "" {
+		msg = "MicrosoftTeams setting validated"
+	}
+
+	content := `{"text":"` + msg + `"}`
+
+	client, err := NewClientFromConfig(cfg, dialer)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(content))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", contentTypeJSON)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("HTTP status code is %d, not included in the 2xx success HTTP status codes", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func TestAliyunSMS(aliyunSMSConfig *v3.AliyunSMSConfig, msg string) error {
+	if msg == "" {
+		msg = "AliyunSMS setting validated"
+	}
+
+	if aliyunSMSConfig.AccessKeySecret == "" {
+		return fmt.Errorf("AccessKeySecret cannot be empty")
+	}
+
+	client, err := dysmsapi.NewClientWithAccessKey("cn-hangzhou", aliyunSMSConfig.AccessKeyID, aliyunSMSConfig.AccessKeySecret)
+	if err != nil {
+		return err
+	}
+
+	request := dysmsapi.CreateSendSmsRequest()
+	request.Scheme = "https"
+
+	request.PhoneNumbers = strings.Join(aliyunSMSConfig.To, ",")
+	request.SignName = aliyunSMSConfig.SignName
+	request.TemplateCode = aliyunSMSConfig.TemplateCode
+	request.TemplateParam = fmt.Sprintf(`{"alert":"%s"}`, msg)
+
+	response, err := client.SendSms(request)
+	if err != nil {
+		return err
+	}
+
+	if response.Code != "OK" {
+		return fmt.Errorf("Failed to send Aliyun SMS message. %s", response.Message)
 	}
 
 	return nil
@@ -550,4 +685,22 @@ func IsHTTPClientConfigSet(cfg *v3.HTTPClientConfig) bool {
 		return true
 	}
 	return false
+}
+
+func getDingtalkURL(webhook, secret string) string {
+	if secret != "" {
+		timestamp := time.Now().UnixNano() / 1e6
+
+		stringToSign := fmt.Sprintf("%d\n%s", timestamp, secret)
+
+		key := []byte(secret)
+		h := hmac.New(sha256.New, key)
+		h.Write([]byte(stringToSign))
+
+		signData := base64.StdEncoding.EncodeToString(h.Sum(nil))
+		sign := url.QueryEscape(signData)
+		webhook = fmt.Sprintf("%s&timestamp=%d&sign=%s", webhook, timestamp, sign)
+	}
+
+	return webhook
 }
