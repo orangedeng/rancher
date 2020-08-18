@@ -20,6 +20,8 @@ func NewTimePoint(value, timestamp float64) (po []float64, isValid bool) {
 	po = []float64{value, timestamp}
 	if math.IsNaN(value) {
 		return po, false
+	} else if math.IsInf(value, 0) {
+		return po, false
 	}
 	return po, true
 }
