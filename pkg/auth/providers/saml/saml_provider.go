@@ -321,8 +321,8 @@ func (s *Provider) getSamlLogoutURL() string {
 		logrus.Errorf("Error occurred when serializes an XML document into the writer:%s", err.Error())
 		return ""
 	}
-	samlEncoder.Close()
 	samlEncoderWriter.Close()
+	samlEncoder.Close()
 	rv, _ := url.Parse(req.Destination)
 
 	query := rv.Query()
