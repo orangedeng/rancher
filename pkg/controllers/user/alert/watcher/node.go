@@ -9,7 +9,6 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	nodeHelper "github.com/rancher/rancher/pkg/node"
-	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/ticker"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -162,20 +161,17 @@ func (w *NodeWatcher) checkNodeMemUsage(alert *v3.ClusterAlertRule, machine *v3.
 
 			clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["alert_type"] = "nodeMemory"
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["mem_threshold"] = strconv.Itoa(alert.Spec.NodeRule.MemThreshold)
-			data["used_mem"] = used.String()
-			data["total_mem"] = total.String()
-			data["node_name"] = nodeHelper.GetNodeName(machine)
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, machine.Status.NodeLabels, machine.Status.NodeAnnotations)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "nodeMemory", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+			common.SetNodeAlertData(labels, machine)
 
-			if err := w.alertManager.SendAlert(data); err != nil {
+			labels["mem_threshold"] = strconv.Itoa(alert.Spec.NodeRule.MemThreshold)
+			labels["used_mem"] = used.String()
+			labels["total_mem"] = total.String()
+
+			if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Debugf("Failed to send alert: %v", err)
 			}
 		}
@@ -191,20 +187,17 @@ func (w *NodeWatcher) checkNodeCPUUsage(alert *v3.ClusterAlertRule, machine *v3.
 
 			clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["alert_type"] = "nodeCPU"
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["cpu_threshold"] = strconv.Itoa(alert.Spec.NodeRule.CPUThreshold)
-			data["used_cpu"] = strconv.FormatInt(used.MilliValue(), 10)
-			data["total_cpu"] = strconv.FormatInt(total.MilliValue(), 10)
-			data["node_name"] = nodeHelper.GetNodeName(machine)
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, machine.Status.NodeLabels, machine.Status.NodeAnnotations)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "nodeCPU", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+			common.SetNodeAlertData(labels, machine)
 
-			if err := w.alertManager.SendAlert(data); err != nil {
+			labels["cpu_threshold"] = strconv.Itoa(alert.Spec.NodeRule.CPUThreshold)
+			labels["used_cpu"] = strconv.FormatInt(used.MilliValue(), 10)
+			labels["total_cpu"] = strconv.FormatInt(total.MilliValue(), 10)
+
+			if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Debugf("Failed to send alert: %v", err)
 			}
 		}
@@ -219,20 +212,16 @@ func (w *NodeWatcher) checkNodeReady(alert *v3.ClusterAlertRule, machine *v3.Nod
 
 				clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 
-				data := map[string]string{}
-				data["rule_id"] = ruleID
-				data["group_id"] = alert.Spec.GroupName
-				data["server_url"] = settings.ServerURL.Get()
-				data["alert_name"] = alert.Spec.DisplayName
-				data["alert_type"] = "nodeHealthy"
-				data["severity"] = alert.Spec.Severity
-				data["cluster_name"] = clusterDisplayName
-				data["node_name"] = nodeHelper.GetNodeName(machine)
+				labels := map[string]string{}
+				annotations := map[string]string{}
+				common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, machine.Status.NodeLabels, machine.Status.NodeAnnotations)
+				common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "nodeHealthy", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+				common.SetNodeAlertData(labels, machine)
 
 				if cond.Message != "" {
-					data["logs"] = cond.Message
+					labels["logs"] = cond.Message
 				}
-				if err := w.alertManager.SendAlert(data); err != nil {
+				if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 					logrus.Errorf("Failed to send alert: %v", err)
 				}
 				return

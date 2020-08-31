@@ -11,7 +11,6 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/controllers/user/workload"
-	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/ticker"
 	appsv1 "github.com/rancher/types/apis/apps/v1"
 	v1 "github.com/rancher/types/apis/core/v1"
@@ -180,23 +179,20 @@ func (w *WorkloadWatcher) checkWorkloadCondition(wl *workload.Workload, alert *v
 		clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 		projectDisplayName := common.GetProjectDisplayName(alert.Spec.ProjectName, w.projectLister)
 
-		data := map[string]string{}
-		data["rule_id"] = ruleID
-		data["group_id"] = alert.Spec.GroupName
-		data["server_url"] = settings.ServerURL.Get()
-		data["alert_type"] = "workload"
-		data["alert_name"] = alert.Spec.DisplayName
-		data["severity"] = alert.Spec.Severity
-		data["cluster_name"] = clusterDisplayName
-		data["project_name"] = projectDisplayName
-		data["workload_name"] = wl.Name
-		data["workload_namespace"] = wl.Namespace
-		data["workload_kind"] = wl.Kind
-		data["available_percentage"] = strconv.Itoa(percentage)
-		data["available_replicas"] = strconv.Itoa(int(wl.Status.AvailableReplicas))
-		data["desired_replicas"] = strconv.Itoa(int(desiredReplicas))
+		labels := map[string]string{}
+		annotations := map[string]string{}
+		common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, wl.TemplateSpec.Labels, wl.TemplateSpec.Annotations)
+		common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "workload", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
 
-		if err := w.alertManager.SendAlert(data); err != nil {
+		labels["project_name"] = projectDisplayName
+		labels["workload_name"] = wl.Name
+		labels["workload_namespace"] = wl.Namespace
+		labels["workload_kind"] = wl.Kind
+		labels["available_percentage"] = strconv.Itoa(percentage)
+		labels["available_replicas"] = strconv.Itoa(int(wl.Status.AvailableReplicas))
+		labels["desired_replicas"] = strconv.Itoa(int(desiredReplicas))
+
+		if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 			logrus.Errorf("Failed to send alert: %v", err)
 		}
 	}

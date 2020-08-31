@@ -9,7 +9,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/controllers/user/workload"
-	"github.com/rancher/rancher/pkg/settings"
+	nodeHelper "github.com/rancher/rancher/pkg/node"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/rancher/types/config"
@@ -41,6 +41,7 @@ type EventWatcher struct {
 	clusterLister           v3.ClusterLister
 	workloadFetcher         workloadFetcher
 	podLister               v1.PodLister
+	machineLister           v3.NodeLister
 }
 
 func StartEventWatcher(ctx context.Context, cluster *config.UserContext, manager *manager.AlertManager) {
@@ -58,6 +59,7 @@ func StartEventWatcher(ctx context.Context, cluster *config.UserContext, manager
 		clusterLister:           cluster.Management.Management.Clusters("").Controller().Lister(),
 		workloadFetcher:         workloadFetcher,
 		podLister:               cluster.Core.Pods(metav1.NamespaceAll).Controller().Lister(),
+		machineLister:           cluster.Management.Management.Nodes(cluster.ClusterName).Controller().Lister(),
 	}
 
 	events.AddHandler(ctx, "cluster-event-alert-watcher", eventWatcher.Sync)
@@ -86,6 +88,11 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 		return nil, err
 	}
 
+	machines, err := l.machineLister.List("", labels.NewSelector())
+	if err != nil {
+		logrus.Errorf("Failed to get machines: %v", err)
+	}
+
 	for _, alert := range clusterAlerts {
 		if alert.Status.AlertState == "inactive" || alert.Status.AlertState == "muted" || alert.Spec.EventRule == nil {
 			continue
@@ -100,36 +107,67 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 
 			clusterDisplayName := common.GetClusterDisplayName(l.clusterName, l.clusterLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["alert_type"] = "event"
-			data["event_type"] = alert.Spec.EventRule.EventType
-			data["resource_kind"] = alert.Spec.EventRule.ResourceKind
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["target_name"] = obj.InvolvedObject.Name
-			data["target_namespace"] = obj.InvolvedObject.Namespace
-			data["event_count"] = strconv.Itoa(int(obj.Count))
-			data["event_message"] = obj.Message
-			data["event_firstseen"] = fmt.Sprintf("%s", obj.FirstTimestamp)
-			data["event_lastseen"] = fmt.Sprintf("%s", obj.LastTimestamp)
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, nil, nil)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "event", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+			labels["event_type"] = alert.Spec.EventRule.EventType
+			labels["resource_kind"] = alert.Spec.EventRule.ResourceKind
+			labels["target_name"] = obj.InvolvedObject.Name
+			labels["target_namespace"] = obj.InvolvedObject.Namespace
+			labels["event_count"] = strconv.Itoa(int(obj.Count))
+			labels["event_message"] = obj.Message
+			labels["event_firstseen"] = fmt.Sprintf("%s", obj.FirstTimestamp)
+			labels["event_lastseen"] = fmt.Sprintf("%s", obj.LastTimestamp)
 
-			if alert.Spec.EventRule.ResourceKind == "Pod" || alert.Spec.EventRule.ResourceKind == "Deployment" || alert.Spec.EventRule.ResourceKind == "StatefulSet" || alert.Spec.EventRule.ResourceKind == "DaemonSet" {
+			if alert.Spec.EventRule.ResourceKind == "Node" {
+				machine := nodeHelper.GetNodeByNodeName(machines, obj.InvolvedObject.Name)
+				if machine != nil {
+					common.SetNodeAlertData(labels, machine)
+				}
+			}
+
+			if alert.Spec.EventRule.ResourceKind == "Pod" {
+				pod, err := l.podLister.Get(obj.InvolvedObject.Namespace, obj.InvolvedObject.Name)
+				if err != nil {
+					errors.Wrapf(err, "failed to get pod %s:%s", obj.InvolvedObject.Namespace, obj.InvolvedObject.Name)
+				}
+
+				var workloadName string
+				if pod != nil {
+					if len(pod.OwnerReferences) == 0 {
+						workloadName = pod.Name
+					} else {
+						ownerRef := pod.OwnerReferences[0]
+						name := ownerRef.Name
+						kind := ownerRef.Kind
+
+						workloadName, err = l.getWorkloadInfo(obj.InvolvedObject.Namespace, name, kind)
+						if err != nil {
+							errors.Wrap(err, "failed to fetch workload info")
+						}
+					}
+					labels["pod_ip"] = pod.Status.PodIP
+				}
+
+				if workloadName != "" {
+					labels["workload_name"] = workloadName
+				}
+			}
+
+			if alert.Spec.EventRule.ResourceKind == "Deployment" || alert.Spec.EventRule.ResourceKind == "StatefulSet" || alert.Spec.EventRule.ResourceKind == "DaemonSet" {
 				workloadName, err := l.getWorkloadInfo(obj.InvolvedObject.Namespace, obj.InvolvedObject.Name, alert.Spec.EventRule.ResourceKind)
 				if err != nil {
 					errors.Wrap(err, "failed to fetch workload info")
 				}
 
 				if workloadName != "" {
-					data["workload_name"] = workloadName
+					labels["workload_name"] = workloadName
 				}
 
 			}
 
-			if err := l.alertManager.SendAlert(data); err != nil {
+			if err := l.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Errorf("Failed to send alert: %v", err)
 			}
 		}
@@ -140,18 +178,6 @@ func (l *EventWatcher) Sync(key string, obj *corev1.Event) (runtime.Object, erro
 }
 
 func (l *EventWatcher) getWorkloadInfo(namespace, name, kind string) (string, error) {
-	if kind == "Pod" {
-		pod, err := l.podLister.Get(namespace, name)
-		if err != nil {
-			return "", errors.Wrapf(err, "failed to get pod %s:%s", namespace, name)
-		}
-		if len(pod.OwnerReferences) == 0 {
-			return pod.Name, nil
-		}
-		ownerRef := pod.OwnerReferences[0]
-		name = ownerRef.Name
-		kind = ownerRef.Kind
-	}
 
 	workloadName, err := l.workloadFetcher.getWorkloadName(namespace, name, kind)
 	if err != nil {

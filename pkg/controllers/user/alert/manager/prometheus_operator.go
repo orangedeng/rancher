@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	monitorutil "github.com/rancher/rancher/pkg/monitoring"
-	"github.com/rancher/rancher/pkg/settings"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	rmonitoringv1 "github.com/rancher/types/apis/monitoring.coreos.com/v1"
@@ -143,26 +143,21 @@ func (c *PromOperatorCRDManager) AddRule(ruleGroup *monitoringv1.RuleGroup, rule
 	ruleGroup.Rules = append(ruleGroup.Rules, rule)
 }
 
-func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectName string, metric *v3.MetricRule) monitoringv1.Rule {
+func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectName string, metric *v3.MetricRule, extraAlertDatas []v3.ExtraAlertData) monitoringv1.Rule {
 	expr := GetExpr(metric.Expression, metric.Comparison, metric.ThresholdValue)
 	comp := strings.Replace(metric.Comparison, "-", " ", -1)
-	labels := map[string]string{
-		"alert_type":      "metric",
-		"server_url":      settings.ServerURL.Get(),
-		"alert_name":      displayName,
-		"group_id":        groupID,
-		"cluster_name":    clusterName,
-		"rule_id":         ruleID,
-		"severity":        serverity,
-		"duration":        metric.Duration,
-		"expression":      expr,
-		"threshold_value": fmt.Sprintf("%v", metric.ThresholdValue),
-		"comparison":      comp,
-	}
 
-	annotation := map[string]string{
-		"current_value": "{{ .Value }}",
-	}
+	labels := map[string]string{}
+	annotations := map[string]string{}
+	common.SetExtraAlertData(labels, annotations, extraAlertDatas, nil, nil)
+	common.SetBasicAlertData(labels, ruleID, groupID, "metric", displayName, serverity, clusterName)
+
+	labels["duration"] = metric.Duration
+	labels["expression"] = expr
+	labels["threshold_value"] = fmt.Sprintf("%v", metric.ThresholdValue)
+	labels["comparison"] = comp
+
+	annotations["current_value"] = "{{ .Value }}"
 
 	if projectName != "" {
 		labels["project_name"] = projectName
@@ -174,7 +169,7 @@ func Metric2Rule(groupID, ruleID, serverity, displayName, clusterName, projectNa
 		Expr:        intstr.FromString(expr),
 		For:         metric.Duration,
 		Labels:      labels,
-		Annotations: annotation,
+		Annotations: annotations,
 	}
 }
 

@@ -115,17 +115,14 @@ func (csw *ClusterScanWatcher) sendAlert(cs *v3.ClusterScan, alertRule *v3.Clust
 	ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
 	clusterDisplayName := common.GetClusterDisplayName(csw.clusterName, csw.clusterLister)
 
-	data := map[string]string{}
-	data["rule_id"] = ruleID
-	data["group_id"] = alertRule.Spec.GroupName
-	data["alert_type"] = "clusterScan"
-	data["alert_name"] = alertRule.Spec.DisplayName
-	data["severity"] = alertRule.Spec.Severity
-	data["cluster_name"] = clusterDisplayName
-	data["component_name"] = cs.Name
-	data["logs"] = csw.getAlertMessage(cs, alertRule)
+	labels := map[string]string{}
+	annotations := map[string]string{}
+	common.SetExtraAlertData(labels, annotations, alertRule.Spec.CommonRuleField.ExtraAlertDatas, nil, nil)
+	common.SetBasicAlertData(labels, ruleID, alertRule.Spec.GroupName, "clusterScan", alertRule.Spec.DisplayName, alertRule.Spec.Severity, clusterDisplayName)
+	labels["component_name"] = cs.Name
+	labels["logs"] = csw.getAlertMessage(cs, alertRule)
 
-	if err := csw.alertManager.SendAlert(data); err != nil {
+	if err := csw.alertManager.SendAlert(labels, annotations); err != nil {
 		return err
 	}
 	return nil

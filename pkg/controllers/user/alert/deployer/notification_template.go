@@ -72,6 +72,10 @@ Server URL: {{ .Labels.server_url}}
 Alert Name: {{ .Labels.alert_name}}
 Severity: {{ .Labels.severity}}
 Cluster Name: {{.Labels.cluster_name}}
+{{- if .Labels.node_ip }}
+Node IP: {{ .Labels.node_ip}}{{ end -}}
+{{- if .Labels.pod_ip }}
+Pod IP: {{ .Labels.pod_ip}}{{ end -}}
 {{- if eq .Labels.alert_type "event" }}
 {{- if .Labels.workload_name }}
 Workload Name: {{.Labels.workload_name}}{{ end }}
@@ -155,6 +159,12 @@ Server URL: {{ .Labels.server_url}}<br>
 Alert Name: {{ .Labels.alert_name}}<br>
 Severity: {{ .Labels.severity}}<br>
 Cluster Name: {{.Labels.cluster_name}}<br>
+{{- if .Labels.node_ip }}
+Node IP: {{ .Labels.node_ip}}<br>
+{{ end -}}
+{{- if .Labels.pod_ip }}
+Pod IP: {{ .Labels.pod_ip}}<br>
+{{ end -}}
 {{- if eq .Labels.alert_type "event" }}
 {{- if .Labels.workload_name }}
 Workload Name: {{.Labels.workload_name}}<br>

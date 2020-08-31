@@ -325,7 +325,7 @@ func (d *ConfigSyncer) addProjectAlert2Operator(clusterDisplayName string, proje
 					hjkExpr := prom.ModifyExpression(expr, nsSet)
 					alertRule.Spec.MetricRule.Expression = hjkExpr
 					ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
-					promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, projectDisplayName, alertRule.Spec.MetricRule)
+					promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, projectDisplayName, alertRule.Spec.MetricRule, alertRule.Spec.CommonRuleField.ExtraAlertDatas)
 					d.operatorCRDManager.AddRule(ruleGroup, promRule)
 				}
 			}
@@ -355,7 +355,7 @@ func (d *ConfigSyncer) addClusterAlert2Operator(clusterDisplayName string, group
 		for _, alertRule := range alertRules {
 			if alertRule.Spec.MetricRule != nil {
 				ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
-				promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, "", alertRule.Spec.MetricRule)
+				promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, "", alertRule.Spec.MetricRule, alertRule.Spec.CommonRuleField.ExtraAlertDatas)
 				d.operatorCRDManager.AddRule(ruleGroup, promRule)
 			}
 		}

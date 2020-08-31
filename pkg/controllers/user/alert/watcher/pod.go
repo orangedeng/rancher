@@ -12,7 +12,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
 	"github.com/rancher/rancher/pkg/controllers/user/workload"
-	"github.com/rancher/rancher/pkg/settings"
+	nodeHelper "github.com/rancher/rancher/pkg/node"
 	"github.com/rancher/rancher/pkg/ticker"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -36,6 +36,7 @@ type PodWatcher struct {
 	projectLister           v3.ProjectLister
 	workloadFetcher         workloadFetcher
 	projectAlertGroupLister v3.ProjectAlertGroupLister
+	machineLister           v3.NodeLister
 }
 
 type restartTrack struct {
@@ -60,6 +61,7 @@ func StartPodWatcher(ctx context.Context, cluster *config.UserContext, manager *
 		projectLister:           cluster.Management.Management.Projects(cluster.ClusterName).Controller().Lister(),
 		workloadFetcher:         workloadFetcher,
 		projectAlertGroupLister: cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
+		machineLister:           cluster.Management.Management.Nodes(cluster.ClusterName).Controller().Lister(),
 	}
 
 	projectAlertLifecycle := &ProjectAlertLifecycle{
@@ -181,23 +183,25 @@ func (w *PodWatcher) checkPodRestarts(pod *corev1.Pod, alert *v3.ProjectAlertRul
 			clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 			projectDisplayName := common.GetProjectDisplayName(alert.Spec.ProjectName, w.projectLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["alert_type"] = "podRestarts"
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["project_name"] = projectDisplayName
-			data["namespace"] = pod.Namespace
-			data["pod_name"] = pod.Name
-			data["container_name"] = containerStatus.Name
-			data["restart_times"] = strconv.Itoa(alert.Spec.PodRule.RestartTimes)
-			data["restart_interval"] = strconv.Itoa(alert.Spec.PodRule.RestartIntervalSeconds)
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, pod.Labels, pod.Annotations)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "podRestarts", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+
+			labels["project_name"] = projectDisplayName
+			labels["namespace"] = pod.Namespace
+			labels["pod_name"] = pod.Name
+			labels["container_name"] = containerStatus.Name
+			labels["restart_times"] = strconv.Itoa(alert.Spec.PodRule.RestartTimes)
+			labels["restart_interval"] = strconv.Itoa(alert.Spec.PodRule.RestartIntervalSeconds)
+			labels["pod_ip"] = pod.Status.PodIP
+
+			if pod.Spec.NodeName != "" {
+				w.setNodeData(labels, pod.Spec.NodeName)
+			}
 
 			if details != "" {
-				data["logs"] = details
+				labels["logs"] = details
 			}
 
 			workloadName, err := w.getWorkloadInfo(pod)
@@ -205,10 +209,10 @@ func (w *PodWatcher) checkPodRestarts(pod *corev1.Pod, alert *v3.ProjectAlertRul
 				logrus.Warnf("Failed to get workload info for %s:%s %v", pod.Namespace, pod.Name, err)
 			}
 			if workloadName != "" {
-				data["workload_name"] = workloadName
+				labels["workload_name"] = workloadName
 			}
 
-			if err := w.alertManager.SendAlert(data); err != nil {
+			if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Debugf("Error occurred while getting pod %s: %v", alert.Spec.PodRule.PodName, err)
 			}
 		}
@@ -263,21 +267,23 @@ func (w *PodWatcher) checkPodRunning(pod *corev1.Pod, alert *v3.ProjectAlertRule
 			clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 			projectDisplayName := common.GetProjectDisplayName(alert.Spec.ProjectName, w.projectLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["alert_type"] = "podNotRunning"
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["namespace"] = pod.Namespace
-			data["project_name"] = projectDisplayName
-			data["pod_name"] = pod.Name
-			data["container_name"] = containerStatus.Name
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, pod.Labels, pod.Annotations)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "podNotRunning", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+
+			labels["namespace"] = pod.Namespace
+			labels["project_name"] = projectDisplayName
+			labels["pod_name"] = pod.Name
+			labels["container_name"] = containerStatus.Name
+			labels["pod_ip"] = pod.Status.PodIP
+
+			if pod.Spec.NodeName != "" {
+				w.setNodeData(labels, pod.Spec.NodeName)
+			}
 
 			if details != "" {
-				data["logs"] = details
+				labels["logs"] = details
 			}
 
 			workloadName, err := w.getWorkloadInfo(pod)
@@ -285,10 +291,10 @@ func (w *PodWatcher) checkPodRunning(pod *corev1.Pod, alert *v3.ProjectAlertRule
 				logrus.Warnf("Failed to get workload info for %s:%s %v", pod.Namespace, pod.Name, err)
 			}
 			if workloadName != "" {
-				data["workload_name"] = workloadName
+				labels["workload_name"] = workloadName
 			}
 
-			if err := w.alertManager.SendAlert(data); err != nil {
+			if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Debugf("Error occurred while send alert %s: %v", alert.Spec.PodRule.PodName, err)
 			}
 			return
@@ -306,20 +312,22 @@ func (w *PodWatcher) checkPodScheduled(pod *corev1.Pod, alert *v3.ProjectAlertRu
 			clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 			projectDisplayName := common.GetProjectDisplayName(alert.Spec.ProjectName, w.projectLister)
 
-			data := map[string]string{}
-			data["rule_id"] = ruleID
-			data["group_id"] = alert.Spec.GroupName
-			data["alert_type"] = "podNotScheduled"
-			data["server_url"] = settings.ServerURL.Get()
-			data["alert_name"] = alert.Spec.DisplayName
-			data["severity"] = alert.Spec.Severity
-			data["cluster_name"] = clusterDisplayName
-			data["namespace"] = pod.Namespace
-			data["project_name"] = projectDisplayName
-			data["pod_name"] = pod.Name
+			labels := map[string]string{}
+			annotations := map[string]string{}
+			common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, pod.Labels, pod.Annotations)
+			common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "podNotScheduled", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+
+			labels["namespace"] = pod.Namespace
+			labels["project_name"] = projectDisplayName
+			labels["pod_name"] = pod.Name
+			labels["pod_ip"] = pod.Status.PodIP
+
+			if pod.Spec.NodeName != "" {
+				w.setNodeData(labels, pod.Spec.NodeName)
+			}
 
 			if details != "" {
-				data["logs"] = details
+				labels["logs"] = details
 			}
 
 			workloadName, err := w.getWorkloadInfo(pod)
@@ -327,10 +335,10 @@ func (w *PodWatcher) checkPodScheduled(pod *corev1.Pod, alert *v3.ProjectAlertRu
 				logrus.Warnf("Failed to get workload info for %s:%s %v", pod.Namespace, pod.Name, err)
 			}
 			if workloadName != "" {
-				data["workload_name"] = workloadName
+				labels["workload_name"] = workloadName
 			}
 
-			if err := w.alertManager.SendAlert(data); err != nil {
+			if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 				logrus.Debugf("Error occurred while getting pod %s: %v", alert.Spec.PodRule.PodName, err)
 			}
 			return false
@@ -367,4 +375,16 @@ func getProjectAlertGroupsMap(clusterName string, projectAlertGroupLister v3.Pro
 		}
 	}
 	return groupMap, nil
+}
+
+func (w *PodWatcher) setNodeData(alertLabels map[string]string, nodeName string) {
+	machines, err := w.machineLister.List("", labels.NewSelector())
+	if err != nil {
+		logrus.Errorf("Failed to get machines: %v", err)
+	}
+
+	machine := nodeHelper.GetNodeByNodeName(machines, nodeName)
+	if machine != nil {
+		common.SetNodeAlertData(alertLabels, machine)
+	}
 }

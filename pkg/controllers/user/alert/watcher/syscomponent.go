@@ -7,7 +7,6 @@ import (
 
 	"github.com/rancher/rancher/pkg/controllers/user/alert/common"
 	"github.com/rancher/rancher/pkg/controllers/user/alert/manager"
-	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rancher/pkg/ticker"
 	v1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -95,20 +94,18 @@ func (w *SysComponentWatcher) checkComponentHealthy(statuses *v1.ComponentStatus
 
 						clusterDisplayName := common.GetClusterDisplayName(w.clusterName, w.clusterLister)
 
-						data := map[string]string{}
-						data["rule_id"] = ruleID
-						data["group_id"] = alert.Spec.GroupName
-						data["server_url"] = settings.ServerURL.Get()
-						data["alert_type"] = "systemService"
-						data["alert_name"] = alert.Spec.DisplayName
-						data["severity"] = alert.Spec.Severity
-						data["cluster_name"] = clusterDisplayName
-						data["component_name"] = alert.Spec.SystemServiceRule.Condition
+						labels := map[string]string{}
+						annotations := map[string]string{}
+						common.SetExtraAlertData(labels, annotations, alert.Spec.CommonRuleField.ExtraAlertDatas, nil, nil)
+						common.SetBasicAlertData(labels, ruleID, alert.Spec.GroupName, "systemService", alert.Spec.DisplayName, alert.Spec.Severity, clusterDisplayName)
+
+						labels["component_name"] = alert.Spec.SystemServiceRule.Condition
 
 						if cond.Message != "" {
-							data["logs"] = cond.Message
+							labels["logs"] = cond.Message
 						}
-						if err := w.alertManager.SendAlert(data); err != nil {
+
+						if err := w.alertManager.SendAlert(labels, annotations); err != nil {
 							logrus.Errorf("Failed to send alert: %v", err)
 						}
 						return

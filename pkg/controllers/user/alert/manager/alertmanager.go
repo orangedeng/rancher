@@ -300,7 +300,7 @@ func (m *AlertManager) RemoveSilenceRule(matcherName, matcherValue string) error
 	return nil
 }
 
-func (m *AlertManager) SendAlert(labels map[string]string) error {
+func (m *AlertManager) SendAlert(labels, annotations map[string]string) error {
 	addresses, port, err := m.GetEndpointAddresses()
 	if err != nil {
 		return err
@@ -309,8 +309,13 @@ func (m *AlertManager) SendAlert(labels map[string]string) error {
 	alertList := model.Alerts{}
 	a := &model.Alert{}
 	a.Labels = map[model.LabelName]model.LabelValue{}
+	a.Annotations = map[model.LabelName]model.LabelValue{}
 	for k, v := range labels {
 		a.Labels[model.LabelName(k)] = model.LabelValue(v)
+	}
+
+	for k, v := range annotations {
+		a.Annotations[model.LabelName(k)] = model.LabelValue(v)
 	}
 
 	alertList = append(alertList, a)
