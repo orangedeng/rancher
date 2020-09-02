@@ -14,6 +14,7 @@ import (
 	"github.com/rancher/rancher/pkg/api/store/apiservice"
 	"github.com/rancher/rancher/pkg/api/store/cert"
 	"github.com/rancher/rancher/pkg/api/store/crd"
+	"github.com/rancher/rancher/pkg/api/store/crossclusterclone"
 	"github.com/rancher/rancher/pkg/api/store/harbor"
 	"github.com/rancher/rancher/pkg/api/store/hpa"
 	"github.com/rancher/rancher/pkg/api/store/ingress"
@@ -79,6 +80,7 @@ func Setup(ctx context.Context, mgmt *config.ScaledContext, clusterManager *clus
 
 	// PANDARIA
 	HarborSecret(schemas, mgmt)
+	CrossClusterCloneWorkload(schemas, mgmt, clusterManager)
 
 	return nil
 }
@@ -186,4 +188,8 @@ func HPA(schemas *types.Schemas, manager *clustermanager.Manager) {
 func HarborSecret(schemas *types.Schemas, management *config.ScaledContext) {
 	schema := schemas.Schema(&schema.Version, client.DockerCredentialType)
 	schema.Store = harbor.NewStore(management.Core.Secrets(""), schema.Store)
+}
+
+func CrossClusterCloneWorkload(schemas *types.Schemas, management *config.ScaledContext, cmanager *clustermanager.Manager) {
+	crossclusterclone.NewCrossClusterCloneStore(schemas, management, cmanager)
 }
