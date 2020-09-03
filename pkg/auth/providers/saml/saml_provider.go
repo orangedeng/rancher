@@ -47,6 +47,7 @@ type Provider struct {
 	ctx             context.Context
 	authConfigs     v3.AuthConfigInterface
 	secrets         corev1.SecretInterface
+	samlTokens      v3.SamlTokenInterface
 	userMGR         user.Manager
 	tokenMGR        *tokens.Manager
 	serviceProvider *saml.ServiceProvider
@@ -64,6 +65,7 @@ func Configure(ctx context.Context, mgmtCtx *config.ScaledContext, userMGR user.
 		ctx:         ctx,
 		authConfigs: mgmtCtx.Management.AuthConfigs(""),
 		secrets:     mgmtCtx.Core.Secrets(""),
+		samlTokens:  mgmtCtx.Management.SamlTokens(""),
 		userMGR:     userMGR,
 		tokenMGR:    tokenMGR,
 		name:        name,
@@ -122,6 +124,10 @@ func PerformSamlLogin(name string, apiContext *types.APIContext, input interface
 	if provider, ok := SamlProviders[name]; ok {
 		provider.clientState.SetState(apiContext.Response, apiContext.Request, "Rancher_FinalRedirectURL", finalRedirectURL)
 		provider.clientState.SetState(apiContext.Response, apiContext.Request, "Rancher_Action", loginAction)
+		provider.clientState.SetState(apiContext.Response, apiContext.Request, "Rancher_PublicKey", login.PublicKey)
+		provider.clientState.SetState(apiContext.Response, apiContext.Request, "Rancher_RequestID", login.RequestID)
+		provider.clientState.SetState(apiContext.Response, apiContext.Request, "Rancher_ResponseType", login.ResponseType)
+
 		idpRedirectURL, err := provider.HandleSamlLogin(apiContext.Response, apiContext.Request)
 		if err != nil {
 			return err
@@ -130,11 +136,10 @@ func PerformSamlLogin(name string, apiContext *types.APIContext, input interface
 			"idpRedirectUrl": idpRedirectURL,
 			"type":           "samlLoginOutput",
 		}
-
 		apiContext.WriteResponse(http.StatusOK, data)
+
 		return nil
 	}
-
 	return nil
 }
 

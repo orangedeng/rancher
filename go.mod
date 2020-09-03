@@ -9,29 +9,30 @@ replace (
 	github.com/knative/pkg => github.com/rancher/pkg v0.0.0-20190514055449-b30ab9de040e
 	github.com/matryer/moq => github.com/rancher/moq v0.0.0-20190404221404-ee5226d43009
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.3
+	golang.org/x/sys => golang.org/x/sys v0.0.0-20190830141801-acfa387b8d69
 
-	k8s.io/api => k8s.io/api v0.18.0
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.0
-	k8s.io/apimachinery => k8s.io/apimachinery v0.18.0
-	k8s.io/apiserver => k8s.io/apiserver v0.18.0
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.18.0
-	k8s.io/client-go => github.com/rancher/client-go v1.18.0-rancher.1
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.0
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.0
-	k8s.io/code-generator => k8s.io/code-generator v0.18.0
-	k8s.io/component-base => k8s.io/component-base v0.18.0
-	k8s.io/cri-api => k8s.io/cri-api v0.18.0
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.18.0
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.18.0
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.0
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.0
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.0
-	k8s.io/kubectl => k8s.io/kubectl v0.18.0
-	k8s.io/kubelet => k8s.io/kubelet v0.18.0
-	k8s.io/kubernetes => k8s.io/kubernetes v1.18.0
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.0
-	k8s.io/metrics => k8s.io/metrics v0.18.0
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.0
+	k8s.io/api => k8s.io/api v0.18.8
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.18.8
+	k8s.io/apimachinery => k8s.io/apimachinery v0.18.8
+	k8s.io/apiserver => k8s.io/apiserver v0.18.8
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.18.8
+	k8s.io/client-go => github.com/rancher/client-go v1.18.8-rancher.1
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.18.8
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.18.8
+	k8s.io/code-generator => k8s.io/code-generator v0.18.8
+	k8s.io/component-base => k8s.io/component-base v0.18.8
+	k8s.io/cri-api => k8s.io/cri-api v0.18.8
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.18.8
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.18.8
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.18.8
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.18.8
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.18.8
+	k8s.io/kubectl => k8s.io/kubectl v0.18.8
+	k8s.io/kubelet => k8s.io/kubelet v0.18.8
+	k8s.io/kubernetes => k8s.io/kubernetes v1.18.8
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.8
+	k8s.io/metrics => k8s.io/metrics v0.18.8
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.18.8
 )
 
 require (
@@ -43,7 +44,6 @@ require (
 	github.com/beevik/etree v0.0.0-20171015221209-af219c0c7ea1 // indirect
 	github.com/bep/debounce v1.2.0
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/containerd/containerd v1.3.0 // indirect
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/coreos/go-semver v0.3.0
 	github.com/coreos/prometheus-operator v0.36.0
@@ -78,16 +78,16 @@ require (
 	github.com/prometheus/common v0.9.1
 	github.com/prometheus/tsdb v0.8.0 // indirect
 	github.com/rancher/dynamiclistener v0.2.1-0.20200418023342-52ede5ec9234
-	github.com/rancher/kontainer-engine v0.0.4-dev.0.20200521034318-6c1852cdab71
+	github.com/rancher/kontainer-engine v0.0.4-dev.0.20200805195909-3e842ecc0384
 	github.com/rancher/machine v0.15.0-rancher25
-	github.com/rancher/norman v0.0.0-20200609224801-7afd2e9bf37f
+	github.com/rancher/norman v0.0.0-20200806175025-f974dbfb2734
 	github.com/rancher/rdns-server v0.0.0-20180802070304-bf662911db6a
 	github.com/rancher/remotedialer v0.2.6-0.20200401224317-04cc22157b83
-	github.com/rancher/rke v1.1.3
+	github.com/rancher/rke v1.1.6
 	github.com/rancher/security-scan v0.1.7-0.20200222041501-f7377f127168
 	github.com/rancher/steve v0.0.0-20200522224200-dc9f969673f8
 	github.com/rancher/system-upgrade-controller v0.4.1-0.20200326220202-4655d4a551bd
-	github.com/rancher/types v0.0.0-20200609171948-b18f4c194419
+	github.com/rancher/types v0.0.0-20200812201428-42b3abe8e39e
 	github.com/rancher/wrangler v0.5.4-0.20200604212251-fc9dde4243fc
 	github.com/rancher/wrangler-api v0.5.1-0.20200326194427-c13310506d04
 	github.com/robfig/cron v1.1.0
@@ -114,13 +114,14 @@ require (
 	gopkg.in/ldap.v2 v2.5.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.18.0
-	k8s.io/apiextensions-apiserver v0.18.0
-	k8s.io/apimachinery v0.18.0
-	k8s.io/apiserver v0.18.0
-	k8s.io/cli-runtime v0.18.0
+	k8s.io/api v0.18.8
+	k8s.io/apiextensions-apiserver v0.18.8
+	k8s.io/apimachinery v0.18.8
+	k8s.io/apiserver v0.18.8
+	k8s.io/cli-runtime v0.18.8
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/kubectl v0.18.0
-	k8s.io/kubernetes v1.18.0
+	k8s.io/kubectl v0.18.8
+	k8s.io/kubernetes v1.18.8
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
+	sigs.k8s.io/yaml v1.2.0
 )

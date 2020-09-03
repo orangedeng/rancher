@@ -133,6 +133,7 @@ func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager
 		client.RoleTemplateType,
 		client.CisConfigType,
 		client.CisBenchmarkVersionType,
+		client.SamlTokenType,
 		client.SettingType,
 		client.TemplateType,
 		client.TemplateVersionType,
@@ -398,9 +399,11 @@ func Tokens(ctx context.Context, schemas *types.Schemas, mgmt *config.ScaledCont
 func NodeTemplates(schemas *types.Schemas, management *config.ScaledContext) {
 	schema := schemas.Schema(&managementschema.Version, client.NodeTemplateType)
 	npl := management.Management.NodePools("").Controller().Lister()
+	nl := management.Management.Nodes("").Controller().Lister()
 	userLister := management.Management.Users("").Controller().Lister()
 	f := nodetemplate.Formatter{
 		NodePoolLister: npl,
+		NodeLister:     nl,
 		UserLister:     userLister,
 	}
 	schema.Formatter = f.Formatter
@@ -411,7 +414,7 @@ func NodeTemplates(schemas *types.Schemas, management *config.ScaledContext) {
 	globalSecretLister := management.Core.Secrets(namespace.GlobalNamespace).Controller().Lister()
 	nodeTemplateClient := management.Management.NodeTemplates("")
 
-	s := nodeTemplateStore.Wrap(nodeTemplateGlobalStore, npl, globalSecretLister, nodeTemplateClient)
+	s := nodeTemplateStore.Wrap(nodeTemplateGlobalStore, npl, nl, globalSecretLister, nodeTemplateClient)
 	schema.Store = s
 	schema.Validator = nodetemplate.Validator
 }
@@ -507,7 +510,11 @@ func NodeTypes(schemas *types.Schemas, management *config.ScaledContext) error {
 		NodeTemplateLister: ntl,
 	}
 	schema.Formatter = f.Formatter
-	schema.Validator = nodepool.Validator
+
+	nodepoolValidator := nodepool.Validator{
+		NodePoolLister: management.Management.NodePools("").Controller().Lister(),
+	}
+	schema.Validator = nodepoolValidator.Validator
 	return nil
 }
 

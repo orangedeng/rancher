@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rancher/norman/objectclient"
 	"github.com/rancher/norman/types/convert"
+	"github.com/rancher/norman/types/slice"
 	"github.com/rancher/rancher/pkg/controllers/user/resourcequota"
 	nsutils "github.com/rancher/rancher/pkg/namespace"
 	pkgrbac "github.com/rancher/rancher/pkg/rbac"
@@ -207,9 +208,12 @@ func (m *manager) createClusterRole(rt *v3.RoleTemplate) error {
 }
 
 func (m *manager) ensureNamespacedRoles(rt *v3.RoleTemplate) error {
-	if rt.Name == "cluster-owner" {
-		return nil
+	// if the RoleTemplate has cluster owner rules, don't update Roles
+	if isClusterOwner, err := m.isClusterOwner(rt.Name); isClusterOwner || err != nil {
+		return err
 	}
+
+	// role template is not a cluster owner
 	switch rt.Context {
 	case "cluster":
 		if err := m.updateRole(rt, m.clusterName); err != nil {
@@ -226,7 +230,48 @@ func (m *manager) ensureNamespacedRoles(rt *v3.RoleTemplate) error {
 			}
 		}
 	}
+
 	return nil
+}
+
+// isClusterOwner checks if a role template is cluster-owner, has cluster ownership rules, or inherits from a role template that grants cluster ownership.
+func (m *manager) isClusterOwner(rtName string) (bool, error) {
+	rt, err := m.rtLister.Get("", rtName)
+	if err != nil {
+		return false, err
+	}
+
+	// role template is the builtin cluster-owner
+	if rt.Builtin && rt.Context == "cluster" && rt.Name == "cluster-owner" {
+		return true, nil
+	}
+
+	for _, rule := range rt.Rules {
+		// cluster + own rule that indicates cluster owner permissions
+		if slice.ContainsString(rule.Resources, "clusters") && slice.ContainsString(rule.Verbs, "own") {
+			return true, nil
+		}
+		// rules with nonResourceURLs can only be applied to ClusterRoles and indicate a RoleTemplate with cluster owner permissions
+		if rule.NonResourceURLs != nil {
+			return true, nil
+		}
+	}
+
+	if len(rt.RoleTemplateNames) > 0 {
+		for _, inherited := range rt.RoleTemplateNames {
+			// recurse on inherited role template to check for cluster ownership
+			isOwner, err := m.isClusterOwner(inherited)
+			if err != nil {
+				return false, err
+			}
+
+			if isOwner {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func (m *manager) updateRole(rt *v3.RoleTemplate, namespace string) error {
