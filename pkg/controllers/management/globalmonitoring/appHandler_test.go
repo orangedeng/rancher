@@ -60,6 +60,10 @@ func (um userManagerMock) GetUserByPrincipalID(principalName string) (*v3.User, 
 	return nil, nil
 }
 
+func (um userManagerMock) GetKubeconfigToken(clusterName, tokenName, description, kind, userName string) (*v3.Token, error) {
+	return nil, nil
+}
+
 type managementInterfaceMock struct {
 	*v3.Client
 }
