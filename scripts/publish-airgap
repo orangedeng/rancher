@@ -20,6 +20,7 @@ if [ -n "$DRONE_TAG" ]; then
 fi
 
 cd $(dirname $0)/../bin
+curl -sLf https://releases.rancher.com/kontainer-driver-metadata/${RANCHER_METADATA_BRANCH}/data.json > data.json
 echo 'export rancher-images'
 
 IMAGE=${REPO}/rancher:${TAG}
