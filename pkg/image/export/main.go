@@ -74,6 +74,12 @@ func run(systemChartPath string, imagesFromArgs []string) error {
 		return err
 	}
 
+	// PANDARIA
+	if strings.Contains(rancherVersion, "-ent") {
+		found := strings.Index(rancherVersion, "-ent")
+		rancherVersion = rancherVersion[:found]
+	}
+
 	linuxInfo, windowsInfo := kd.GetK8sVersionInfo(
 		rancherVersion,
 		data.K8sVersionRKESystemImages,

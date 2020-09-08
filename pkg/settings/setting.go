@@ -147,6 +147,16 @@ func (s Setting) Get() string {
 		s := settings[s.Name]
 		return s.Default
 	}
+
+	// PANDARIA
+	if s.Name == "server-version" {
+		v := provider.Get(s.Name)
+		if strings.HasSuffix(v, "ent-head") {
+			return "dev"
+		}
+		return strings.SplitN(v, "-ent", 2)[0]
+	}
+
 	return provider.Get(s.Name)
 }
 

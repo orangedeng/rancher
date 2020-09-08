@@ -210,5 +210,10 @@ func GetRancherVersion() string {
 	if strings.HasPrefix(rancherVersion, "v") {
 		return rancherVersion[1:]
 	}
+	// PANDARIA
+	if strings.Contains(rancherVersion, "-ent") {
+		found := strings.Index(rancherVersion, "-ent")
+		rancherVersion = rancherVersion[:found]
+	}
 	return rancherVersion
 }
