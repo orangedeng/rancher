@@ -114,6 +114,7 @@ func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager
 		client.NodePoolType,
 		client.NodeTemplateType,
 		client.NodeType,
+		client.NotificationTemplateType,
 		client.NotifierType,
 		client.PodSecurityPolicyTemplateProjectBindingType,
 		client.PodSecurityPolicyTemplateType,
@@ -581,6 +582,9 @@ func Alert(schemas *types.Schemas, management *config.ScaledContext) {
 	schema.CollectionFormatter = alert.NotifierCollectionFormatter
 	schema.Formatter = alert.NotifierFormatter
 	schema.ActionHandler = handler.NotifierActionHandler
+
+	schema = schemas.Schema(&managementschema.Version, client.NotificationTemplateType)
+	schema.Store = alert.WrapStore(schema.Store)
 
 	schema = schemas.Schema(&managementschema.Version, client.ClusterAlertRuleType)
 	schema.Formatter = alert.RuleFormatter

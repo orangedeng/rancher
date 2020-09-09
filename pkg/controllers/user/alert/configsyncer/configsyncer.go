@@ -73,38 +73,40 @@ type Receiver struct {
 
 func NewConfigSyncer(ctx context.Context, cluster *config.UserContext, alertManager *manager.AlertManager, operatorCRDManager *manager.PromOperatorCRDManager) *ConfigSyncer {
 	return &ConfigSyncer{
-		apps:                    cluster.Management.Project.Apps(metav1.NamespaceAll),
-		appLister:               cluster.Management.Project.Apps(metav1.NamespaceAll).Controller().Lister(),
-		secretsGetter:           cluster.Core,
-		nsLister:                cluster.Core.Namespaces("").Controller().Lister(),
-		clusterAlertGroupLister: cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
-		projectAlertGroupLister: cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
-		clusterAlertRuleLister:  cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
-		projectAlertRuleLister:  cluster.Management.Management.ProjectAlertRules("").Controller().Lister(),
-		notifierLister:          cluster.Management.Management.Notifiers(cluster.ClusterName).Controller().Lister(),
-		clusterLister:           cluster.Management.Management.Clusters(metav1.NamespaceAll).Controller().Lister(),
-		projectLister:           cluster.Management.Management.Projects(cluster.ClusterName).Controller().Lister(),
-		clusterName:             cluster.ClusterName,
-		alertManager:            alertManager,
-		operatorCRDManager:      operatorCRDManager,
+		apps:                       cluster.Management.Project.Apps(metav1.NamespaceAll),
+		appLister:                  cluster.Management.Project.Apps(metav1.NamespaceAll).Controller().Lister(),
+		secretsGetter:              cluster.Core,
+		nsLister:                   cluster.Core.Namespaces("").Controller().Lister(),
+		clusterAlertGroupLister:    cluster.Management.Management.ClusterAlertGroups(cluster.ClusterName).Controller().Lister(),
+		projectAlertGroupLister:    cluster.Management.Management.ProjectAlertGroups("").Controller().Lister(),
+		clusterAlertRuleLister:     cluster.Management.Management.ClusterAlertRules(cluster.ClusterName).Controller().Lister(),
+		projectAlertRuleLister:     cluster.Management.Management.ProjectAlertRules("").Controller().Lister(),
+		notifierLister:             cluster.Management.Management.Notifiers(cluster.ClusterName).Controller().Lister(),
+		clusterLister:              cluster.Management.Management.Clusters(metav1.NamespaceAll).Controller().Lister(),
+		projectLister:              cluster.Management.Management.Projects(cluster.ClusterName).Controller().Lister(),
+		clusterName:                cluster.ClusterName,
+		alertManager:               alertManager,
+		operatorCRDManager:         operatorCRDManager,
+		notificationTemplateLister: cluster.Management.Management.NotificationTemplates(cluster.ClusterName).Controller().Lister(),
 	}
 }
 
 type ConfigSyncer struct {
-	apps                    projectv3.AppInterface
-	appLister               projectv3.AppLister
-	secretsGetter           v1.SecretsGetter
-	nsLister                v1.NamespaceLister
-	projectAlertGroupLister v3.ProjectAlertGroupLister
-	clusterAlertGroupLister v3.ClusterAlertGroupLister
-	projectAlertRuleLister  v3.ProjectAlertRuleLister
-	clusterAlertRuleLister  v3.ClusterAlertRuleLister
-	notifierLister          v3.NotifierLister
-	clusterLister           v3.ClusterLister
-	projectLister           v3.ProjectLister
-	clusterName             string
-	alertManager            *manager.AlertManager
-	operatorCRDManager      *manager.PromOperatorCRDManager
+	apps                       projectv3.AppInterface
+	appLister                  projectv3.AppLister
+	secretsGetter              v1.SecretsGetter
+	nsLister                   v1.NamespaceLister
+	projectAlertGroupLister    v3.ProjectAlertGroupLister
+	clusterAlertGroupLister    v3.ClusterAlertGroupLister
+	projectAlertRuleLister     v3.ProjectAlertRuleLister
+	clusterAlertRuleLister     v3.ClusterAlertRuleLister
+	notifierLister             v3.NotifierLister
+	clusterLister              v3.ClusterLister
+	projectLister              v3.ProjectLister
+	clusterName                string
+	alertManager               *manager.AlertManager
+	operatorCRDManager         *manager.PromOperatorCRDManager
+	notificationTemplateLister v3.NotificationTemplateLister
 }
 
 func (d *ConfigSyncer) ProjectGroupSync(key string, alert *v3.ProjectAlertGroup) (runtime.Object, error) {
@@ -124,6 +126,10 @@ func (d *ConfigSyncer) ClusterRuleSync(key string, alert *v3.ClusterAlertRule) (
 }
 
 func (d *ConfigSyncer) NotifierSync(key string, alert *v3.Notifier) (runtime.Object, error) {
+	return nil, d.sync()
+}
+
+func (d *ConfigSyncer) NotificationTemplateSync(key string, notificationTemplate *v3.NotificationTemplate) (runtime.Object, error) {
 	return nil, d.sync()
 }
 
@@ -241,6 +247,16 @@ func (d *ConfigSyncer) sync() error {
 		return err
 	}
 
+	templates := deployer.NotificationTmpl
+	notificationTemplates, err := d.notificationTemplateLister.List(metav1.NamespaceAll, labels.NewSelector())
+	if err != nil {
+		return errors.Wrapf(err, "List alert templates")
+	}
+
+	if len(notificationTemplates) > 0 && notificationTemplates[0].Spec.Enabled {
+		templates = notificationTemplates[0].Spec.Content
+	}
+
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return errors.Wrapf(err, "Marshal secrets")
@@ -254,12 +270,10 @@ func (d *ConfigSyncer) sync() error {
 		return errors.Wrapf(err, "Get secrets")
 	}
 
-	if string(configSecret.Data["alertmanager.yaml"]) != string(data) || string(configSecret.Data["notification.tmpl"]) == "" {
+	if string(configSecret.Data["alertmanager.yaml"]) != string(data) || string(configSecret.Data["notification.tmpl"]) != templates {
 		newConfigSecret := configSecret.DeepCopy()
 		newConfigSecret.Data["alertmanager.yaml"] = data
-		if string(newConfigSecret.Data["notification.tmpl"]) == "" {
-			newConfigSecret.Data["notification.tmpl"] = []byte(deployer.NotificationTmpl)
-		}
+		newConfigSecret.Data["notification.tmpl"] = []byte(templates)
 
 		_, err = secretClient.Update(newConfigSecret)
 		if err != nil {
@@ -547,7 +561,7 @@ func (d *ConfigSyncer) addRecipients(notifiers []*v3.Notifier, receiver *alertco
 					APISecret:      alertconfig.Secret(notifier.Spec.WechatConfig.Secret),
 					AgentID:        notifier.Spec.WechatConfig.Agent,
 					CorpID:         notifier.Spec.WechatConfig.Corp,
-					Message:        `{{ template "wechat.text" . }}`,
+					Message:        `{{ template "title.text.list" . }}`,
 					APIURL:         notifier.Spec.WechatConfig.APIURL,
 				}
 
@@ -634,7 +648,7 @@ func (d *ConfigSyncer) addRecipients(notifiers []*v3.Notifier, receiver *alertco
 					NotifierConfig: commonNotifierConfig,
 					APIURL:         alertconfig.Secret(notifier.Spec.SlackConfig.URL),
 					Channel:        notifier.Spec.SlackConfig.DefaultRecipient,
-					Text:           `{{ template "slack.text" . }}`,
+					Text:           `{{ template "text.list" . }}`,
 					Title:          `{{ template "rancher.title" . }}`,
 					TitleLink:      "",
 					Color:          `{{ if eq (index .Alerts 0).Labels.severity "critical" }}danger{{ else if eq (index .Alerts 0).Labels.severity "warning" }}warning{{ else }}good{{ end }}`,
@@ -668,7 +682,7 @@ func (d *ConfigSyncer) addRecipients(notifiers []*v3.Notifier, receiver *alertco
 					To:             notifier.Spec.SMTPConfig.DefaultRecipient,
 					Headers:        header,
 					From:           notifier.Spec.SMTPConfig.Sender,
-					HTML:           `{{ template "email.text" . }}`,
+					HTML:           `{{ template "html.list" . }}`,
 				}
 				if r.Recipient != "" {
 					email.To = r.Recipient

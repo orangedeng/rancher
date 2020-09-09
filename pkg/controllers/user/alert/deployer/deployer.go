@@ -34,6 +34,7 @@ var (
 	creatorIDAnn          = "field.cattle.io/creatorId"
 	systemProjectLabel    = map[string]string{"authz.management.cattle.io/system-project": "true"}
 	webhookReceiverEnable = "webhook-receiver.enabled"
+	defaultSecretName     = "alertmanager-default-notification-template"
 
 	webhookReceiverTypes = []string{
 		"dingtalk",
@@ -55,27 +56,29 @@ type Deployer struct {
 }
 
 type appDeployer struct {
-	appsGetter           projectv3.AppsGetter
-	appsLister           projectv3.AppLister
-	namespaces           v1.NamespaceInterface
-	secrets              v1.SecretInterface
-	templateLister       mgmtv3.CatalogTemplateLister
-	statefulsets         appsv1.StatefulSetInterface
-	systemAccountManager *systemaccount.Manager
-	deployments          appsv1.DeploymentInterface
+	appsGetter                 projectv3.AppsGetter
+	appsLister                 projectv3.AppLister
+	namespaces                 v1.NamespaceInterface
+	secrets                    v1.SecretInterface
+	templateLister             mgmtv3.CatalogTemplateLister
+	statefulsets               appsv1.StatefulSetInterface
+	systemAccountManager       *systemaccount.Manager
+	deployments                appsv1.DeploymentInterface
+	notificationTemplateLister mgmtv3.NotificationTemplateLister
 }
 
 func NewDeployer(cluster *config.UserContext, manager *manager.AlertManager) *Deployer {
 	appsgetter := cluster.Management.Project
 	ad := &appDeployer{
-		appsGetter:           appsgetter,
-		appsLister:           cluster.Management.Project.Apps("").Controller().Lister(),
-		namespaces:           cluster.Core.Namespaces(metav1.NamespaceAll),
-		secrets:              cluster.Core.Secrets(metav1.NamespaceAll),
-		templateLister:       cluster.Management.Management.CatalogTemplates(namespace.GlobalNamespace).Controller().Lister(),
-		statefulsets:         cluster.Apps.StatefulSets(metav1.NamespaceAll),
-		systemAccountManager: systemaccount.NewManager(cluster.Management),
-		deployments:          cluster.Apps.Deployments(metav1.NamespaceAll),
+		appsGetter:                 appsgetter,
+		appsLister:                 cluster.Management.Project.Apps("").Controller().Lister(),
+		namespaces:                 cluster.Core.Namespaces(metav1.NamespaceAll),
+		secrets:                    cluster.Core.Secrets(metav1.NamespaceAll),
+		templateLister:             cluster.Management.Management.CatalogTemplates(namespace.GlobalNamespace).Controller().Lister(),
+		statefulsets:               cluster.Apps.StatefulSets(metav1.NamespaceAll),
+		systemAccountManager:       systemaccount.NewManager(cluster.Management),
+		deployments:                cluster.Apps.Deployments(metav1.NamespaceAll),
+		notificationTemplateLister: cluster.Management.Management.NotificationTemplates(cluster.ClusterName).Controller().Lister(),
 	}
 
 	return &Deployer{
@@ -263,6 +266,10 @@ func (d *appDeployer) cleanup(appName, appTargetNamespace, systemProjectID strin
 		return d.secrets.DeleteNamespaced(appTargetNamespace, secretName, &metav1.DeleteOptions{})
 	})
 
+	errgrp.Go(func() error {
+		return d.secrets.DeleteNamespaced(appTargetNamespace, defaultSecretName, &metav1.DeleteOptions{})
+	})
+
 	if err := errgrp.Wait(); err != nil && !apierrors.IsNotFound(err) {
 		return false, err
 	}
@@ -272,6 +279,17 @@ func (d *appDeployer) cleanup(appName, appTargetNamespace, systemProjectID strin
 
 func (d *appDeployer) getSecret(secretName, secretNamespace string) *corev1.Secret {
 	cfg := manager.GetAlertManagerDefaultConfig()
+	templates := NotificationTmpl
+
+	notificationTemplates, err := d.notificationTemplateLister.List(metav1.NamespaceAll, labels.NewSelector())
+	if err != nil {
+		return nil
+	}
+
+	if len(notificationTemplates) > 0 && notificationTemplates[0].Spec.Enabled {
+		templates = notificationTemplates[0].Spec.Content
+	}
+
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil
@@ -284,7 +302,7 @@ func (d *appDeployer) getSecret(secretName, secretNamespace string) *corev1.Secr
 		},
 		Data: map[string][]byte{
 			"alertmanager.yaml": data,
-			"notification.tmpl": []byte(NotificationTmpl),
+			"notification.tmpl": []byte(templates),
 		},
 	}
 }
@@ -306,6 +324,19 @@ func (d *appDeployer) deploy(appName, appTargetNamespace, systemProjectID string
 	secret := d.getSecret(secretName, appTargetNamespace)
 	if _, err := d.secrets.Create(secret); err != nil && !apierrors.IsAlreadyExists(err) {
 		return false, fmt.Errorf("create secret %s:%s failed, %v", appTargetNamespace, appName, err)
+	}
+
+	templateSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: appTargetNamespace,
+			Name:      defaultSecretName,
+		},
+		Data: map[string][]byte{
+			"notification.tmpl": []byte(NotificationTmpl),
+		},
+	}
+	if _, err := d.secrets.Create(templateSecret); err != nil && !apierrors.IsAlreadyExists(err) {
+		return false, fmt.Errorf("create template secret %s:%s failed, %v", appTargetNamespace, appName, err)
 	}
 
 	app, err := d.appsLister.Get(systemProjectName, appName)

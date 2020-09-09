@@ -25,22 +25,23 @@ const (
 )
 
 var clusterManagmentPlaneResources = map[string]string{
-	"clusterscans":                "management.cattle.io",
-	"catalogtemplates":            "management.cattle.io",
-	"catalogtemplateversions":     "management.cattle.io",
-	"clusteralertrules":           "management.cattle.io",
-	"clusteralertgroups":          "management.cattle.io",
-	"clustercatalogs":             "management.cattle.io",
-	"clusterloggings":             "management.cattle.io",
-	"clustermonitorgraphs":        "management.cattle.io",
-	"clusterregistrationtokens":   "management.cattle.io",
-	"clusterroletemplatebindings": "management.cattle.io",
-	"etcdbackups":                 "management.cattle.io",
-	"nodes":                       "management.cattle.io",
-	"nodepools":                   "management.cattle.io",
-	"notifiers":                   "management.cattle.io",
+	"clusterscans":                             "management.cattle.io",
+	"catalogtemplates":                         "management.cattle.io",
+	"catalogtemplateversions":                  "management.cattle.io",
+	"clusteralertrules":                        "management.cattle.io",
+	"clusteralertgroups":                       "management.cattle.io",
+	"clustercatalogs":                          "management.cattle.io",
+	"clusterloggings":                          "management.cattle.io",
+	"clustermonitorgraphs":                     "management.cattle.io",
+	"clusterregistrationtokens":                "management.cattle.io",
+	"clusterroletemplatebindings":              "management.cattle.io",
+	"etcdbackups":                              "management.cattle.io",
+	"nodes":                                    "management.cattle.io",
+	"nodepools":                                "management.cattle.io",
+	"notifiers":                                "management.cattle.io",
+	"notificationtemplates":                    "management.cattle.io",
 	"podsecuritypolicytemplateprojectbindings": "management.cattle.io",
-	"projects": "management.cattle.io",
+	"projects":                                 "management.cattle.io",
 }
 
 type crtbLifecycle struct {

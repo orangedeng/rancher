@@ -38,24 +38,16 @@ The workload {{ if .GroupLabels.workload_namespace}}{{.GroupLabels.workload_name
 {{ .CommonLabels.alert_name}}: ETCD backup failed for custom cluster
 {{- else}}
 The metric {{ .CommonLabels.alert_name}} crossed the threshold
-{{ end -}}
+{{ end -}}	
 {{ end -}}
 {{ end -}}
 
-{{- define "wechat.text" -}}
-{{ template "__wechat_text_list" . }}
-{{ end -}}
-
-{{- define "__wechat_text_list" -}}
+{{- define "title.text.list" -}}
 {{ template "rancher.title" . }}
-{{ template "__text_list" . }}
+{{ template "text.list" . }}
 {{ end -}}
 
-{{- define "slack.text" -}}
-{{ template "__text_list" . }}
-{{ end -}}
-
-{{- define "__text_list" -}}
+{{- define "text.list" -}}
 {{- if eq .Status "resolved" -}}
 {{ range .Alerts.Resolved }}
 {{ template "__text_single" . }}
@@ -138,98 +130,20 @@ Logs: {{ .Labels.logs}}
 {{ end -}}
 {{ end -}}
 
-{{- define "email.text" -}}
-{{ template "__email_text_list" . }}
-{{ end -}}
-
-{{- define "__email_text_list" -}}
+{{- define "html.list" -}}
 {{- if eq .Status "resolved" -}}
 {{ range .Alerts.Resolved }}
-{{ template "__email_text_single" . }}
+<pre>
+{{ template "__text_single" . }}
+</pre>
 {{ end -}}
 {{- else}}
 {{ range .Alerts.Firing }}
-{{ template "__email_text_single" . }}
+<pre>
+{{ template "__text_single" . }}
+</pre>
 {{ end -}}
 {{ end -}}
-{{ end -}}
-
-{{- define "__email_text_single" -}}
-Server URL: {{ .Labels.server_url}}<br>
-Alert Name: {{ .Labels.alert_name}}<br>
-Severity: {{ .Labels.severity}}<br>
-Cluster Name: {{.Labels.cluster_name}}<br>
-{{- if .Labels.node_ip }}
-Node IP: {{ .Labels.node_ip}}<br>
-{{ end -}}
-{{- if .Labels.pod_ip }}
-Pod IP: {{ .Labels.pod_ip}}<br>
-{{ end -}}
-{{- if eq .Labels.alert_type "event" }}
-{{- if .Labels.workload_name }}
-Workload Name: {{.Labels.workload_name}}<br>
-{{ end -}}
-Target: {{ if .Labels.target_namespace -}}{{.Labels.target_namespace}}:{{end -}}{{ .Labels.target_name}}<br>
-Count: {{ .Labels.event_count}}<br>
-Event Message: {{ .Labels.event_message}}<br>
-First Seen: {{ .Labels.event_firstseen}}<br>
-Last Seen: {{ .Labels.event_lastseen}}<br>
-{{- else if eq .Labels.alert_type "nodeCPU" }}
-Used CPU: {{ .Labels.used_cpu}} m<br>
-Total CPU: {{ .Labels.total_cpu}} m<br>
-{{- else if eq .Labels.alert_type "nodeMemory" }}
-Used Memory: {{ .Labels.used_mem}}<br>
-Total Memory: {{ .Labels.total_mem}}<br>
-{{- else if eq .Labels.alert_type "podRestarts" }}
-Project Name: {{.Labels.project_name}}<br>
-Namespace: {{ .Labels.namespace}}<br>
-{{- if .Labels.workload_name }}
-Workload Name: {{.Labels.workload_name}}<br>
-{{ end -}}
-Container Name: {{.Labels.container_name}}<br>
-{{- else if eq .Labels.alert_type "podNotRunning" }}
-Project Name: {{.Labels.project_name}}<br>
-Namespace: {{ .Labels.namespace}}<br>
-{{- if .Labels.workload_name }}
-Workload Name: {{.Labels.workload_name}}<br>
-{{ end -}}
-Container Name: {{ .Labels.container_name}}<br>
-{{- else if eq .Labels.alert_type "podNotScheduled" }}
-Project Name: {{.Labels.project_name}}<br>
-Namespace: {{ .Labels.namespace}}<br>
-{{- if .Labels.workload_name }}
-Workload Name: {{.Labels.workload_name}}<br>
-{{ end -}}
-Pod Name: {{ .Labels.pod_name}}<br>
-{{- else if eq .Labels.alert_type "workload"}}
-Project Name: {{.Labels.project_name}}<br>
-Available Replicas: {{ .Labels.available_replicas}}<br>
-Desired Replicas: {{ .Labels.desired_replicas}}<br>
-{{- else if eq .Labels.alert_type "metric" }}
-{{- if .Labels.project_name }}
-Project Name: {{.Labels.project_name}}<br>
-{{ end -}}
-{{- if .Labels.pod_name }}
-Pod Name: {{.Labels.pod_name}}{{ else if .Labels.pod -}}Pod Name: {{.Labels.pod}}<br>
-{{ end -}}
-{{- if .Labels.namespace }}
-Namespace: {{.Labels.namespace}}<br>
-{{ end -}}
-Expression: {{.Labels.expression}}<br>
-{{- if .Labels.threshold_value }}
-{{- if match ".*pandaria_etcd_is_backup_failed.*" .Labels.expression -}}
-Description: Custom cluster {{ .Labels.name}} (ID: {{ .Labels.cluster }}) backup failed. <br>
-{{- else }}
-Description: Threshold Crossed: datapoint value {{ .Annotations.current_value}} was {{ .Labels.comparison}} to the threshold ({{ .Labels.threshold_value}}) for ({{ .Labels.duration}})<br>
-{{ end -}}
-{{- else}}
-Description: The configured event happened for ({{ .Labels.duration}}): expression matched, datapoint value is {{ .Annotations.current_value}}<br>
-{{ end -}}
-{{ end -}}
-{{- if .Labels.logs }}
-Logs: {{ .Labels.logs}}
-{{ end -}}
-<br>
 {{ end -}}
 `
 )
