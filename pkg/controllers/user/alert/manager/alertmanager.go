@@ -7,16 +7,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/prometheus/common/model"
 	alertconfig "github.com/rancher/rancher/pkg/controllers/user/alert/config"
 	monitorutil "github.com/rancher/rancher/pkg/monitoring"
+	"go.uber.org/atomic"
 
 	v1 "github.com/rancher/types/apis/core/v1"
 	"github.com/rancher/types/config"
 	"github.com/rancher/types/config/dialer"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type State string
@@ -81,11 +84,12 @@ const (
 )
 
 type AlertManager struct {
-	svcLister   v1.ServiceLister
-	dialer      dialer.Factory
-	clusterName string
-	client      *http.Client
-	IsDeploy    bool
+	svcLister      v1.ServiceLister
+	dialer         dialer.Factory
+	clusterName    string
+	client         *http.Client
+	IsDeploy       bool
+	endpointLister v1.EndpointsLister
 }
 
 func NewAlertManager(cluster *config.UserContext) *AlertManager {
@@ -101,9 +105,10 @@ func NewAlertManager(cluster *config.UserContext) *AlertManager {
 	}
 
 	return &AlertManager{
-		svcLister:   cluster.Core.Services("").Controller().Lister(),
-		client:      client,
-		clusterName: cluster.ClusterName,
+		svcLister:      cluster.Core.Services("").Controller().Lister(),
+		client:         client,
+		clusterName:    cluster.ClusterName,
+		endpointLister: cluster.Core.Endpoints("").Controller().Lister(),
 	}
 }
 
@@ -209,8 +214,7 @@ func (m *AlertManager) GetState(matcherName, matcherValue string, apiAlerts []*A
 }
 
 func (m *AlertManager) AddSilenceRule(matcherName, matcherValue string) error {
-
-	url, err := m.GetAlertManagerEndpoint()
+	addresses, port, err := m.GetEndpointAddresses()
 	if err != nil {
 		return err
 	}
@@ -239,20 +243,26 @@ func (m *AlertManager) AddSilenceRule(matcherName, matcherValue string) error {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url+"/api/v1/silences", bytes.NewBuffer(silenceData))
-	if err != nil {
-		return err
+	var (
+		wg         sync.WaitGroup
+		numSuccess atomic.Uint64
+	)
+	for _, address := range addresses {
+		wg.Add(1)
+		url := "http://" + address.IP + ":" + port + "/api/v1/silences"
+		go func(url string) {
+			if err := doHTTPRequest(http.MethodPost, url, silenceData, m.client); err != nil {
+				logrus.Errorf("Failed to add silence rule to %s with error %v", url, err)
+			} else {
+				numSuccess.Inc()
+			}
+			wg.Done()
+		}(url)
 	}
 
-	resp, err := m.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	wg.Wait()
+	if numSuccess.Load() == 0 {
+		return fmt.Errorf("All add silence rule request fail")
 	}
 
 	return nil
@@ -260,16 +270,123 @@ func (m *AlertManager) AddSilenceRule(matcherName, matcherValue string) error {
 }
 
 func (m *AlertManager) RemoveSilenceRule(matcherName, matcherValue string) error {
-	url, err := m.GetAlertManagerEndpoint()
+	addresses, port, err := m.GetEndpointAddresses()
 	if err != nil {
 		return err
 	}
+
+	var (
+		wg         sync.WaitGroup
+		numSuccess atomic.Uint64
+	)
+	for _, address := range addresses {
+		wg.Add(1)
+		url := "http://" + address.IP + ":" + port
+		go func(url string) {
+			if err := doRemoveSilenceRuleHTTPRequest(matcherName, matcherValue, http.MethodGet, url, nil, m.client); err != nil {
+				logrus.Errorf("Failed to add silence rule to %s with error %v", url, err)
+			} else {
+				numSuccess.Inc()
+			}
+			wg.Done()
+		}(url)
+	}
+
+	wg.Wait()
+	if numSuccess.Load() == 0 {
+		return fmt.Errorf("All remove silence rule request fail")
+	}
+
+	return nil
+}
+
+func (m *AlertManager) SendAlert(labels map[string]string) error {
+	addresses, port, err := m.GetEndpointAddresses()
+	if err != nil {
+		return err
+	}
+
+	alertList := model.Alerts{}
+	a := &model.Alert{}
+	a.Labels = map[model.LabelName]model.LabelValue{}
+	for k, v := range labels {
+		a.Labels[model.LabelName(k)] = model.LabelValue(v)
+	}
+
+	alertList = append(alertList, a)
+
+	alertData, err := json.Marshal(alertList)
+	if err != nil {
+		return err
+	}
+
+	var (
+		wg         sync.WaitGroup
+		numSuccess atomic.Uint64
+	)
+	for _, address := range addresses {
+		wg.Add(1)
+		url := "http://" + address.IP + ":" + port + "/api/v1/alerts"
+		go func(url string) {
+			if err := doHTTPRequest(http.MethodPost, url, alertData, m.client); err != nil {
+				logrus.Errorf("Failed to send alert to %s with error %v", url, err)
+			} else {
+				numSuccess.Inc()
+			}
+			wg.Done()
+		}(url)
+	}
+
+	wg.Wait()
+	if numSuccess.Load() == 0 {
+		return fmt.Errorf("All send alert request fail")
+	}
+
+	return nil
+}
+
+func (m *AlertManager) GetEndpointAddresses() ([]corev1.EndpointAddress, string, error) {
+	name, namespace, port := monitorutil.ClusterAlertManagerEndpoint()
+
+	ep, err := m.endpointLister.Get(namespace, name)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return ep.Subsets[0].Addresses, port, nil
+}
+
+func doHTTPRequest(method, url string, data []byte, client *http.Client) error {
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("alertmanager response is %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func doRemoveSilenceRuleHTTPRequest(matcherName, matcherValue, method, url string, data []byte, client *http.Client) error {
 	res := struct {
 		Data   []*Silence `json:"data"`
 		Status string     `json:"status"`
 	}{}
 
-	req, err := http.NewRequest(http.MethodGet, url+"/api/v1/silences", nil)
+	req, err := http.NewRequest(method, url+"/api/v1/silences", nil)
 	if err != nil {
 		return err
 	}
@@ -277,7 +394,7 @@ func (m *AlertManager) RemoveSilenceRule(matcherName, matcherValue string) error
 	q.Add("filter", fmt.Sprintf("{%s=%s}", matcherName, matcherValue))
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := m.client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -298,65 +415,10 @@ func (m *AlertManager) RemoveSilenceRule(matcherName, matcherValue string) error
 
 	for _, s := range res.Data {
 		if s.Status.State == SilenceStateActive {
-			delReq, err := http.NewRequest(http.MethodDelete, url+"/api/v1/silence/"+s.ID, nil)
-			if err != nil {
-				return err
-			}
-
-			delResp, err := m.client.Do(delReq)
-			if err != nil {
-				return err
-			}
-			defer delResp.Body.Close()
-
-			_, err = ioutil.ReadAll(delResp.Body)
-			if err != nil {
-				return err
+			if err := doHTTPRequest(http.MethodDelete, url+"/api/v1/silence/"+s.ID, nil, client); err != nil {
+				return fmt.Errorf("Failed to delete silence %s with error %v", s.ID, err)
 			}
 		}
-	}
-
-	return nil
-}
-
-func (m *AlertManager) SendAlert(labels map[string]string) error {
-	url, err := m.GetAlertManagerEndpoint()
-	if err != nil {
-		return err
-	}
-
-	alertList := model.Alerts{}
-	a := &model.Alert{}
-	a.Labels = map[model.LabelName]model.LabelValue{}
-	for k, v := range labels {
-		a.Labels[model.LabelName(k)] = model.LabelValue(v)
-	}
-
-	alertList = append(alertList, a)
-
-	alertData, err := json.Marshal(alertList)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url+"/api/v1/alerts", bytes.NewBuffer(alertData))
-	if err != nil {
-		return err
-	}
-
-	resp, err := m.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("alertmanager response is %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

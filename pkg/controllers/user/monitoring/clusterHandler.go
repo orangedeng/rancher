@@ -304,7 +304,6 @@ func (ch *clusterHandler) getExporterEndpoint() (map[string][]string, error) {
 
 func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProjectName string, cluster *mgmtv3.Cluster, etcdTLSConfig []*etcdTLSConfig, systemComponentMap map[string][]string) (map[string]string, error) {
 	_, appDeployProjectID := ref.Parse(appProjectName)
-	clusterAlertManagerSvcName, clusterAlertManagerSvcNamespaces, clusterAlertManagerPort := monitoring.ClusterAlertManagerEndpoint()
 
 	optionalAppAnswers := map[string]string{
 		"exporter-kube-state.enabled": "true",
@@ -356,14 +355,15 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		"prometheus.apiGroup":                       monitoring.APIVersion.Group,
 		"prometheus.externalLabels.prometheus_from": cluster.Spec.DisplayName,
 		"prometheus.serviceAccountNameOverride":     appName,
-		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].targets[0]":          fmt.Sprintf("%s.%s:%s", clusterAlertManagerSvcName, clusterAlertManagerSvcNamespaces, clusterAlertManagerPort),
-		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.level":        "cluster",
-		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.cluster_id":   cluster.Name,
-		"prometheus.additionalAlertManagerConfigs[0].static_configs[0].labels.cluster_name": cluster.Spec.DisplayName,
-		"prometheus.ruleSelector.matchExpressions[0].key":                                   monitoring.CattlePrometheusRuleLabelKey,
-		"prometheus.ruleSelector.matchExpressions[0].operator":                              "In",
-		"prometheus.ruleSelector.matchExpressions[0].values[0]":                             monitoring.CattleAlertingPrometheusRuleLabelValue,
-		"prometheus.ruleSelector.matchExpressions[0].values[1]":                             monitoring.CattleMonitoringPrometheusRuleLabelValue,
+		"prometheus.additionalAlertManagerConfigs[0].kubernetes_sd_configs[0].role":       "endpoints",
+		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].source_labels[0]": "__meta_kubernetes_namespace",
+		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].source_labels[1]": "__meta_kubernetes_endpoints_name",
+		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].action":           "keep",
+		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].regex":            "cattle-prometheus;access-alertmanager",
+		"prometheus.ruleSelector.matchExpressions[0].key":                                 monitoring.CattlePrometheusRuleLabelKey,
+		"prometheus.ruleSelector.matchExpressions[0].operator":                            "In",
+		"prometheus.ruleSelector.matchExpressions[0].values[0]":                           monitoring.CattleAlertingPrometheusRuleLabelValue,
+		"prometheus.ruleSelector.matchExpressions[0].values[1]":                           monitoring.CattleMonitoringPrometheusRuleLabelValue,
 	}
 
 	appAnswers, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(optionalAppAnswers, cluster.Annotations, ch.app.catalogTemplateLister)
