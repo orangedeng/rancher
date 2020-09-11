@@ -218,7 +218,7 @@ func (c *cloneStore) Create(apiContext *types.APIContext, schema *types.Schema, 
 	if err != nil {
 		return nil, err
 	}
-	workloadResult = append(workloadResult, convert.ToMapInterface(w))
+	workloadResult = append(workloadResult, w)
 
 	// create ingress
 	ingressList := convert.ToMapSlice(data["ingressList"])
