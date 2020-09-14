@@ -113,7 +113,9 @@ Namespace: {{ .Labels.namespace}}{{ end }}
 {{- if .Labels.project_name }}
 Project Name: {{ .Labels.project_name}}{{ end }}
 {{- if .Labels.pod_name }}
-Pod Name: {{ .Labels.pod_name}}{{ else if .Labels.pod -}}Pod Name: {{ .Labels.pod}}{{ end }}
+Pod Name: {{ .Labels.pod_name}}
+{{- else if .Labels.pod }}
+Pod Name: {{ .Labels.pod}}{{ end }}
 Expression: {{ .Labels.expression}}
 {{- if .Labels.threshold_value }}
 {{- if match ".*pandaria_etcd_is_backup_failed.*" .Labels.expression -}}
