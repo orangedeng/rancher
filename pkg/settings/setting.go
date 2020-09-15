@@ -80,15 +80,15 @@ var (
 	RotateCertsIfExpiringInDays       = NewSetting("rotate-certs-if-expiring-in-days", "7")  // 7 days
 	ClusterTemplateEnforcement        = NewSetting("cluster-template-enforcement", "false")
 	InitialDockerRootDir              = NewSetting("initial-docker-root-dir", "/var/lib/docker")
-	SystemCatalog                     = NewSetting("system-catalog", "external")                                                                                     // Options are 'external' or 'bundled'
-	IgnoreNodeName                    = NewSetting("ignore-node-name", "")                                                                                           // nodes to ignore when syncing v1.node to v3.node
-	SystemGPUMonitoringCatalogID      = NewSetting("system-gpu-monitoring-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-monitoring&version=0.0.2")  // Pandaria gpu management
-	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2`") // Pandaria gpu management
-	AuditlogServer                    = NewSetting("auditlog-server-url", "")                                                                                        //Pandria auditlog
-	UISessionLogoutMinutes            = NewSetting("ui-session-logout-minutes", "960")                                                                               // Pandaria logout minutes
-	HarborServerURL                   = NewSetting("harbor-server-url", "")                                                                                          // PANDARIA: harbor-server-url
-	HarborAdminAuth                   = NewSetting("harbor-admin-auth", "")                                                                                          // PANDARIA: harbor admin auth user
-	HarborAuthMode                    = NewSetting("harbor-auth-mode", "")                                                                                           // PANDARIA: harbor auth mode
+	SystemCatalog                     = NewSetting("system-catalog", "external")                                                                                    // Options are 'external' or 'bundled'
+	IgnoreNodeName                    = NewSetting("ignore-node-name", "")                                                                                          // nodes to ignore when syncing v1.node to v3.node
+	SystemGPUMonitoringCatalogID      = NewSetting("system-gpu-monitoring-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-monitoring&version=0.0.2") // Pandaria gpu management
+	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2") // Pandaria gpu management
+	AuditlogServer                    = NewSetting("auditlog-server-url", "")                                                                                       //Pandria auditlog
+	UISessionLogoutMinutes            = NewSetting("ui-session-logout-minutes", "960")                                                                              // Pandaria logout minutes
+	HarborServerURL                   = NewSetting("harbor-server-url", "")                                                                                         // PANDARIA: harbor-server-url
+	HarborAdminAuth                   = NewSetting("harbor-admin-auth", "")                                                                                         // PANDARIA: harbor admin auth user
+	HarborAuthMode                    = NewSetting("harbor-auth-mode", "")                                                                                          // PANDARIA: harbor auth mode
 )
 
 func init() {
