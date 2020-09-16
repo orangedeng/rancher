@@ -53,6 +53,7 @@ func Formatter(apiContext *types.APIContext, resource *types.RawResource) {
 	podID := resource.ID
 	podSchema := apiContext.Schemas.Schema(&schema.Version, "pod")
 	resource.Actions["download"] = apiContext.URLBuilder.ActionLinkByID(podSchema, podID, "download")
+	resource.Links["yaml"] = apiContext.URLBuilder.Link("yaml", resource)
 }
 
 func splitID(id string) (string, string) {
