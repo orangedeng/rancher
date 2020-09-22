@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rancher/norman/httperror"
+	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
 	"github.com/rancher/rancher/pkg/auth/util"
@@ -348,7 +349,11 @@ func (m *Manager) listTokens(request *types.APIContext) error {
 		tokensFromStore = append(tokensFromStore, tokenData)
 	}
 
-	request.WriteResponse(http.StatusOK, tokensFromStore)
+	opts := parse.QueryOptions(request, request.Schema)
+
+	tokensFromFiter := request.FilterList(&opts, request.Schema, tokensFromStore)
+
+	request.WriteResponse(http.StatusOK, tokensFromFiter)
 	return nil
 }
 
