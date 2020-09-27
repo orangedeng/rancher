@@ -33,6 +33,7 @@ const (
 	HarborLDAPMode            = "ldap_auth"
 	HarborLocalMode           = "db_auth"
 	HarborAdminConfig         = "harbor-config"
+	HarborVersion2            = "v2.0"
 )
 
 type HarborUser struct {
@@ -55,6 +56,10 @@ type HarborAPIError struct {
 	Message string `json:"message"`
 }
 
+type HarborAPIErrorV2 struct {
+	Errors []HarborAPIError `json:"errors"`
+}
+
 // setHarborAuth sync rancher user with harbor.
 // If harbor auth is `db_auth`, will create a new harbor user or using current auth to sync with harbor.
 // If harbor auth is `ldap_auth`, will using current auth to sync with harbor.
@@ -70,6 +75,9 @@ func (h *Handler) setHarborAuth(actionName string, action *types.Action, request
 	if harborServer == "" {
 		return httperror.NewAPIError(httperror.InvalidOption, "Can't sync with harbor without setting harbor-server-url")
 	}
+
+	// get harbor-version
+	harborVersion := settings.HarborVersion.Get()
 
 	adminSecret, err := h.SecretClient.GetNamespaced(namespace.PandariaGlobalNamespace, HarborAdminConfig, v1.GetOptions{})
 	if err != nil {
@@ -117,11 +125,11 @@ func (h *Handler) setHarborAuth(actionName string, action *types.Action, request
 		}
 		harborAuth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", harborUserName, pass)))
 		// harbor auth validation
-		_, err = h.harborAuthValidation(harborServer, harborAuth)
+		_, err = h.harborAuthValidation(harborServer, harborAuth, harborVersion)
 		if err != nil {
 			// check user exist due to password validation
 			if strings.EqualFold(harborAuthMode, HarborLocalMode) {
-				statusCode, e := h.createNewHarborUser(harborAdminAuth, harborUserName, pass, harborEmail, harborServer)
+				statusCode, e := h.createNewHarborUser(harborAdminAuth, harborUserName, pass, harborEmail, harborServer, harborVersion)
 				// if return 409 means user already exist
 				if e != nil {
 					return e
@@ -167,14 +175,14 @@ func (h *Handler) setHarborAuth(actionName string, action *types.Action, request
 		harborUserName := harborAuthArray[0]
 		harborUserAuthPwd := harborAuthArray[1]
 		if strings.EqualFold(harborAuthMode, HarborLocalMode) {
-			_, err = h.createNewHarborUser(harborAdminAuth, harborUserName, harborUserAuthPwd, harborEmail, harborServer)
+			_, err = h.createNewHarborUser(harborAdminAuth, harborUserName, harborUserAuthPwd, harborEmail, harborServer, harborVersion)
 			if err != nil {
 				return err
 			}
 		}
 		harborAuthHeader := base64.StdEncoding.EncodeToString(harborAuth)
 		// sync harbor user
-		_, err = h.harborAuthValidation(harborServer, harborAuthHeader)
+		_, err = h.harborAuthValidation(harborServer, harborAuthHeader, harborVersion)
 		if err != nil {
 			return err
 		}
@@ -317,7 +325,11 @@ func (h Handler) changeHarborPassword(harborUserAuth, oldPwdValue, newPwdValue s
 	// get harbor-server and auth to sync user
 	harborServer := settings.HarborServerURL.Get()
 
-	result, err := h.harborAuthValidation(harborServer, harborUserAuth)
+	harborVersion := settings.HarborVersion.Get()
+
+	result, err := h.harborAuthValidation(harborServer, harborUserAuth, harborVersion)
+
+	versionPath := h.harborVersionChangeToPath(harborVersion)
 	if err != nil {
 		return "", err
 	}
@@ -335,7 +347,7 @@ func (h Handler) changeHarborPassword(harborUserAuth, oldPwdValue, newPwdValue s
 
 	logrus.Infof("update harbor auth for user %d:%s", harborUser.UserID, harborUser.UserName)
 	updatePwdBody, err := json.Marshal(pwd)
-	r, statusCode, err := h.serveHarbor("PUT", fmt.Sprintf("%s/api/users/%d/password", harborServer, harborUser.UserID), fmt.Sprintf("Basic %s", harborUserAuth), updatePwdBody)
+	r, statusCode, err := h.serveHarbor("PUT", fmt.Sprintf("%s/%s/users/%d/password", harborServer, versionPath, harborUser.UserID), fmt.Sprintf("Basic %s", harborUserAuth), updatePwdBody)
 	if err != nil {
 		return "", httperror.NewAPIError(httperror.ErrorCode{
 			Code:   "SyncHarborFailed",
@@ -452,6 +464,11 @@ func (h *Handler) saveHarborConfig(actionName string, action *types.Action, requ
 		return httperror.NewAPIError(httperror.InvalidBodyContent, "invalid server url")
 	}
 
+	version, ok := actionInput["version"].(string)
+	if !ok {
+		return httperror.NewAPIError(httperror.InvalidBodyContent, "invalid version")
+	}
+
 	store := request.Schema.Store
 	if store == nil {
 		return errors.New("no user store available")
@@ -468,7 +485,7 @@ func (h *Handler) saveHarborConfig(actionName string, action *types.Action, requ
 	}
 
 	encodeAuth := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, pass)))
-	_, err = h.harborAuthValidation(serverURL, encodeAuth)
+	_, err = h.harborAuthValidation(serverURL, encodeAuth, version)
 	if err != nil {
 		return err
 	}
@@ -612,8 +629,11 @@ func (h *Handler) ensureUserNamespace(ns string) error {
 	return nil
 }
 
-func (h *Handler) harborAuthValidation(harborServer, auth string) ([]byte, error) {
-	result, statusCode, err := h.serveHarbor("GET", fmt.Sprintf("%s/api/users/current", harborServer), fmt.Sprintf("Basic %s", auth), nil)
+func (h *Handler) harborAuthValidation(harborServer, auth string, harborVersion string) ([]byte, error) {
+	// If the version is 2.0 change request address
+	versionPath := h.harborVersionChangeToPath(harborVersion)
+
+	result, statusCode, err := h.serveHarbor("GET", fmt.Sprintf("%s/%s/users/current", harborServer, versionPath), fmt.Sprintf("Basic %s", auth), nil)
 	if err != nil {
 		logrus.Errorf("haborAuthValidation failed with code %d, error %v", statusCode, err)
 		// to deal with empty message from harbor api
@@ -633,7 +653,9 @@ func (h *Handler) ensureHarborAuthMode() error {
 	harborAuthMode := settings.HarborAuthMode.Get()
 	if harborAuthMode == "" {
 		harborServer := settings.HarborServerURL.Get()
-		result, _, err := h.serveHarbor("GET", fmt.Sprintf("%s/api/systeminfo", harborServer), "", nil)
+		harborVersion := settings.HarborVersion.Get()
+		versionPath := h.harborVersionChangeToPath(harborVersion)
+		result, _, err := h.serveHarbor("GET", fmt.Sprintf("%s/%s/systeminfo", harborServer, versionPath), "", nil)
 		if err != nil {
 			return err
 		}
@@ -696,7 +718,8 @@ func decryptPassword(request *types.APIContext, password string) (string, error)
 	return password, nil
 }
 
-func (h *Handler) createNewHarborUser(harborAdminAuth, harborUserName, harborUserAuthPwd, harborEmail, harborServer string) (int, error) {
+func (h *Handler) createNewHarborUser(harborAdminAuth, harborUserName, harborUserAuthPwd, harborEmail, harborServer string, harborVersion string) (int, error) {
+	versionPath := h.harborVersionChangeToPath(harborVersion)
 	adminAuth := base64.StdEncoding.EncodeToString([]byte(harborAdminAuth))
 	adminAuthHeader := fmt.Sprintf("Basic %s", adminAuth)
 	// create a new one
@@ -716,7 +739,7 @@ func (h *Handler) createNewHarborUser(harborAdminAuth, harborUserName, harborUse
 		}, err.Error())
 	}
 
-	result, statusCode, err := h.serveHarbor("POST", fmt.Sprintf("%s/api/users", harborServer), adminAuthHeader, postUser)
+	result, statusCode, err := h.serveHarbor("POST", fmt.Sprintf("%s/%s/users", harborServer, versionPath), adminAuthHeader, postUser)
 	// if return 409 means create conflict
 	if err != nil && statusCode != http.StatusConflict {
 		return statusCode, httperror.NewAPIError(httperror.ErrorCode{
@@ -728,15 +751,7 @@ func (h *Handler) createNewHarborUser(harborAdminAuth, harborUserName, harborUse
 	// if return 409 and username has already exist, will use current auth to validate
 	if statusCode == http.StatusConflict {
 		// to deal with harbor previous api with different result body
-		var apiMessage string
-		apiError := HarborAPIError{}
-		e := json.Unmarshal(result, &apiError)
-		if e != nil {
-			apiMessage = string(result)
-		} else {
-			apiMessage = apiError.Message
-		}
-		if !strings.Contains(apiMessage, "username") {
+		if !h.isHarborUserNameAlreadyExist(result, harborVersion) {
 			return statusCode, httperror.NewAPIError(httperror.ErrorCode{
 				Code:   "SyncHarborFailed",
 				Status: http.StatusGone,
@@ -744,4 +759,38 @@ func (h *Handler) createNewHarborUser(harborAdminAuth, harborUserName, harborUse
 		}
 	}
 	return statusCode, nil
+}
+
+func (h Handler) harborVersionChangeToPath(harborVersion string) string {
+	if harborVersion == HarborVersion2 {
+		return "/api/v2.0"
+	}
+
+	return "/api"
+}
+
+// isHarborUserNameAlreadyExist Determine whether the user name is repeated from the error message
+func (h Handler) isHarborUserNameAlreadyExist(result []byte, harborVersion string) bool {
+	var apiMessage string
+	// Different version correspond to different error struct
+	apiErrorV2 := HarborAPIErrorV2{}
+	apiError := HarborAPIError{}
+
+	if harborVersion == HarborVersion2 {
+		e := json.Unmarshal(result, &apiErrorV2)
+		if e != nil {
+			apiMessage = string(result)
+		} else if len(apiErrorV2.Errors) > 0 {
+			apiMessage = apiErrorV2.Errors[0].Message
+		}
+	} else {
+		e := json.Unmarshal(result, &apiError)
+		if e != nil {
+			apiMessage = string(result)
+		} else {
+			apiMessage = apiError.Message
+		}
+	}
+
+	return strings.Contains(apiMessage, "username has already")
 }
