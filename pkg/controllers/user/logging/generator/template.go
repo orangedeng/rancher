@@ -7,8 +7,14 @@ var Template = `
 {{- template "filter-rke" . -}}
 {{end }}
 {{- template "source-container" . -}}
+{{- if .EnableExceptionStackMatch }}
+{{- template "match-detect-exceptions" . -}}
+{{end}}
 {{- template "filter-container" . -}}
 {{- template "filter-add-logtype" . -}}
+{{- if and .EnableMultiLineFilter (or .MultiLineStartRegexp .MultiLineEndRegexp) }}
+{{- template "filter-concat" . -}}
+{{end}}
 {{- template "filter-custom-tags" . -}}
 {{- template "filter-prometheus" . -}}
 {{- template "filter-exclude-system-component" . -}}
@@ -24,8 +30,14 @@ var Template = `
 {{- template "filter-rke" $store -}}
 {{end }}
 {{- template "source-project-container" $store -}}
+{{- if $store.EnableExceptionStackMatch }}
+{{- template "match-detect-exceptions" $store -}}
+{{end}}
 {{- template "filter-container" $store -}}
 {{- template "filter-add-projectid" $store -}}
+{{- if and $store.EnableMultiLineFilter (or $store.MultiLineStartRegexp $store.MultiLineEndRegexp) }}
+{{- template "filter-concat" $store -}}
+{{end}}
 {{- template "filter-custom-tags" $store -}}
 {{- template "filter-prometheus" $store -}}
 {{- template "filter-sumo" $store -}}

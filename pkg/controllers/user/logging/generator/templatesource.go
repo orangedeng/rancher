@@ -17,7 +17,11 @@ var SourceTemplate = `
   @type  tail
   path  /var/log/containers/*.log
   pos_file  /fluentd/log/{{ .ContainerLogPosFilename}}
+{{- if .EnableExceptionStackMatch}}
+  tag  exceptions.{{ .ContainerLogSourceTag }}.*
+{{- else}}
   tag  {{ .ContainerLogSourceTag }}.*
+{{end}}
   skip_refresh_on_startup true
   read_from_head true
 
@@ -42,7 +46,11 @@ var SourceTemplate = `
   path  {{ .ContainerSourcePath}}
   pos_file  /fluentd/log/{{ .ContainerLogPosFilename}}
   time_format  %Y-%m-%dT%H:%M:%S
+{{- if .EnableExceptionStackMatch}}
+  tag  exceptions.{{ .ContainerLogSourceTag }}.*
+{{- else}}
   tag  {{ .ContainerLogSourceTag }}.*
+{{end}}
   format  json
   skip_refresh_on_startup true
   read_from_head true

@@ -22,8 +22,16 @@ var (
 	}
 )
 
+func ValidateDetectExceptionsMatch(data interface{}) error {
+	return validateFragments("match-detect-exceptions", "match", data)
+}
+
 func ValidateCustomTags(data interface{}) error {
 	return validateFragments("filter-custom-tags", "filter", data)
+}
+
+func ValidateMultiLineFilter(data interface{}) error {
+	return validateFragments("filter-concat", "filter", data)
 }
 
 func ValidateSyslogToken(data interface{}) error {

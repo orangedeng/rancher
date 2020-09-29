@@ -1,6 +1,13 @@
 package generator
 
 var MatchTemplate = `
+{{define "match-detect-exceptions"}}
+<match exceptions.**>
+  @type detect_exceptions
+  remove_tag_prefix exceptions
+</match>
+{{end}}
+
 {{define "match"}}
 <match  {{ .ContainerLogSourceTag}}.** {{ .CustomLogSourceTag}}.** {{ if .IncludeRke }}{{ .RkeLogTag }}.**{{end}}> 
   @type copy
