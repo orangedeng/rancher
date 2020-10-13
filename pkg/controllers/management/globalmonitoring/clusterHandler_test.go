@@ -133,7 +133,7 @@ func TestEnableClusterMonitoring(t *testing.T) {
 	assert.Equal("cluster1", updatedApp.Spec.Answers[clusterIDAnswerKey])
 
 	updatedCluster, err := ch.clusterClient.Get("cluster1", metav1.GetOptions{})
-	updatedClusterMonitoringAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
+	updatedClusterMonitoringAnswers, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
 	assert.Equal("true", updatedClusterMonitoringAnswers[ThanosEnabledAnswerKey])
 }
 

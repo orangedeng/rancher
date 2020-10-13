@@ -225,7 +225,7 @@ func TestGlobalMonitoringAppInstall(t *testing.T) {
 	_, err = ah.sync(updatedApp)
 	assert.Empty(err)
 	updatedCluster, err := ah.clusterClient.Get("cluster1", metav1.GetOptions{})
-	updatedClusterMonitoringAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
+	updatedClusterMonitoringAnswers, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
 	assert.Equal("true", updatedClusterMonitoringAnswers[ThanosEnabledAnswerKey])
 }
 
@@ -281,7 +281,7 @@ func TestGlobalMonitoringAppRemove(t *testing.T) {
 	_, err := ah.sync(&app)
 	assert.Empty(err)
 	updatedCluster, err := ah.clusterClient.Get("cluster1", metav1.GetOptions{})
-	updatedClusterMonitoringAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
+	updatedClusterMonitoringAnswers, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(updatedCluster.Annotations)
 	assert.Equal("", updatedClusterMonitoringAnswers[ThanosEnabledAnswerKey])
 }
 

@@ -176,7 +176,7 @@ func UpdateClusterMonitoringAnswers(clusterClient mgmtv3.ClusterInterface, clust
 		}
 	}
 
-	toUpdateAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	toUpdateAnswers, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
 	if !syncThanosAnswers(toUpdateAnswers, answers) {
 		return nil
 	}

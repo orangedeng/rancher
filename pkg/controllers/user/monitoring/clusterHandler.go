@@ -81,7 +81,7 @@ func (ch *clusterHandler) doSync(cluster *mgmtv3.Cluster) error {
 	appName, appTargetNamespace := monitoring.ClusterMonitoringInfo()
 
 	//PANDARIA: Add GPU Monitoring
-	appAnswersGPU, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	appAnswersGPU, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
 	enabledGPUMonitoring := appAnswersGPU[gpuMonitoringEnabledAnno]
 
 	if cluster.Spec.EnableClusterMonitoring {
@@ -366,7 +366,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		"prometheus.ruleSelector.matchExpressions[0].values[1]":                           monitoring.CattleMonitoringPrometheusRuleLabelValue,
 	}
 
-	appAnswers, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(optionalAppAnswers, cluster.Annotations, ch.app.catalogTemplateLister)
+	appAnswers, valuesYaml, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(optionalAppAnswers, cluster.Annotations, ch.app.catalogTemplateLister)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +427,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 	}
 
 	//PANDARIA: Add GPU Monitoring
-	appAnswersGPU, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	appAnswersGPU, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
 	enabledGPUMonitoring := appAnswersGPU[gpuMonitoringEnabledAnno]
 	if enabledGPUMonitoring == "true" {
 		gpuAppCatalogID := settings.SystemGPUMonitoringCatalogID.Get()
@@ -469,6 +469,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 			ExternalID:      appCatalogID,
 			ProjectName:     appProjectName,
 			TargetNamespace: appTargetNamespace,
+			ValuesYaml:      valuesYaml,
 		},
 	}
 

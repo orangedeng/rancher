@@ -207,8 +207,8 @@ grafana.persistence.size             	| 50Gi
 
 */
 func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations map[string]string,
-	catalogTemplateLister mgmtv3.CatalogTemplateLister) (map[string]string, string, error) {
-	overwriteAnswers, version := GetOverwroteAppAnswersAndVersion(annotations)
+	catalogTemplateLister mgmtv3.CatalogTemplateLister) (map[string]string, string, string, error) {
+	overwriteAnswers, valuesYaml, version := GetOverwroteAppAnswersAndVersion(annotations)
 	for specialKey, value := range overwriteAnswers {
 		if strings.HasPrefix(specialKey, "_tpl-") {
 			trr := tplRegexp.translate(value)
@@ -233,7 +233,7 @@ func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations m
 	}
 	catalogID, err := GetMonitoringCatalogID(version, catalogTemplateLister)
 
-	return rawAnswers, catalogID, err
+	return rawAnswers, valuesYaml, catalogID, err
 }
 
 func GetMonitoringCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister) (string, error) {
@@ -287,16 +287,16 @@ func (tr *templateRegexp) translate(value string) *templateRegexpResult {
 	return captures
 }
 
-func GetOverwroteAppAnswersAndVersion(annotations map[string]string) (map[string]string, string) {
+func GetOverwroteAppAnswersAndVersion(annotations map[string]string) (map[string]string, string, string) {
 	overwritingAppAnswers := annotations[cattleOverwriteAppAnswersAnnotationKey]
 	if len(overwritingAppAnswers) != 0 {
 		var appOverwriteInput mgmtv3.MonitoringInput
 		err := json.Unmarshal([]byte(overwritingAppAnswers), &appOverwriteInput)
 		if err == nil {
-			return appOverwriteInput.Answers, appOverwriteInput.Version
+			return appOverwriteInput.Answers, appOverwriteInput.ValuesYaml, appOverwriteInput.Version
 		}
 		logrus.Errorf("failed to parse app overwrite input from %q, %v", overwritingAppAnswers, err)
 	}
 
-	return map[string]string{}, ""
+	return map[string]string{}, "", ""
 }
