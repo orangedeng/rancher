@@ -53,8 +53,9 @@ func (p *Provisioner) handleNetworkPlugin(old v3.ClusterSpec, clusterName string
 func (p *Provisioner) handleMultusFlannel(cfg *v3.RancherKubernetesEngineConfig, clusterName string, updateClusterConfigFile bool) error {
 	var path string
 	template := fmt.Sprintf("%s%s%s.yaml",
-		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusFlannel)
-	clusterConfig := fmt.Sprintf("%s.%s", template, clusterName)
+		os.Getenv("NETWORK_ADDONS_TEMPLATE_DIR"), string(os.PathSeparator), pluginMultusFlannel)
+	clusterConfig := fmt.Sprintf("%s.%s", fmt.Sprintf("%s%s%s.yaml",
+		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusFlannel), clusterName)
 
 	if updateClusterConfigFile {
 		path = template
@@ -120,8 +121,9 @@ func applyMultusFlannelOption(addons string, option map[string]string) string {
 func (p *Provisioner) handleMultusCanal(cfg *v3.RancherKubernetesEngineConfig, clusterName string, updateClusterConfigFile bool) error {
 	var path string
 	template := fmt.Sprintf("%s%s%s.yaml",
-		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusCanal)
-	clusterConfig := fmt.Sprintf("%s.%s", template, clusterName)
+		os.Getenv("NETWORK_ADDONS_TEMPLATE_DIR"), string(os.PathSeparator), pluginMultusCanal)
+	clusterConfig := fmt.Sprintf("%s.%s", fmt.Sprintf("%s%s%s.yaml",
+		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusCanal), clusterName)
 
 	if updateClusterConfigFile {
 		path = template
