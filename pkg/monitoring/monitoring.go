@@ -206,7 +206,7 @@ grafana.persistence.accessMode       	| ReadWriteOnce
 grafana.persistence.size             	| 50Gi
 
 */
-func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations map[string]string,
+func OverwriteAppAnswersAndCatalogID(annotations map[string]string,
 	catalogTemplateLister mgmtv3.CatalogTemplateLister) (map[string]string, string, string, error) {
 	overwriteAnswers, valuesYaml, version := GetOverwroteAppAnswersAndVersion(annotations)
 	for specialKey, value := range overwriteAnswers {
@@ -217,7 +217,7 @@ func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations m
 					for _, prefixKey := range trr.roots {
 						actualKey := fmt.Sprintf("%s.%s", prefixKey, suffixKey)
 
-						rawAnswers[actualKey] = value
+						overwriteAnswers[actualKey] = value
 					}
 
 					delete(overwriteAnswers, suffixKey)
@@ -228,12 +228,9 @@ func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations m
 		}
 	}
 
-	for key, value := range overwriteAnswers {
-		rawAnswers[key] = value
-	}
 	catalogID, err := GetMonitoringCatalogID(version, catalogTemplateLister)
 
-	return rawAnswers, valuesYaml, catalogID, err
+	return overwriteAnswers, valuesYaml, catalogID, err
 }
 
 func GetMonitoringCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister) (string, error) {

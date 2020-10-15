@@ -305,22 +305,6 @@ func (ch *clusterHandler) getExporterEndpoint() (map[string][]string, error) {
 func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProjectName string, cluster *mgmtv3.Cluster, etcdTLSConfig []*etcdTLSConfig, systemComponentMap map[string][]string) (map[string]string, error) {
 	_, appDeployProjectID := ref.Parse(appProjectName)
 
-	optionalAppAnswers := map[string]string{
-		"exporter-kube-state.enabled": "true",
-
-		"exporter-kubelets.enabled": "true",
-
-		"exporter-kubernetes.enabled": "true",
-
-		"exporter-node.enabled": "true",
-
-		"exporter-fluentd.enabled": "true",
-
-		"grafana.persistence.enabled": "false",
-
-		"prometheus.persistence.enabled": "false",
-	}
-
 	mustAppAnswers := map[string]string{
 		"enabled": "false",
 
@@ -366,7 +350,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		"prometheus.ruleSelector.matchExpressions[0].values[1]":                           monitoring.CattleMonitoringPrometheusRuleLabelValue,
 	}
 
-	appAnswers, valuesYaml, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(optionalAppAnswers, cluster.Annotations, ch.app.catalogTemplateLister)
+	appAnswers, valuesYaml, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(cluster.Annotations, ch.app.catalogTemplateLister)
 	if err != nil {
 		return nil, err
 	}
