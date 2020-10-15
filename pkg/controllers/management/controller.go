@@ -22,6 +22,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/management/etcdbackup"
 	"github.com/rancher/rancher/pkg/controllers/management/globaldns"
 	"github.com/rancher/rancher/pkg/controllers/management/globalmonitoring"
+	"github.com/rancher/rancher/pkg/controllers/management/harbor"
 	"github.com/rancher/rancher/pkg/controllers/management/kontainerdrivermetadata"
 	"github.com/rancher/rancher/pkg/controllers/management/multiclusterapp"
 	"github.com/rancher/rancher/pkg/controllers/management/node"
@@ -68,6 +69,9 @@ func Register(ctx context.Context, management *config.ManagementContext, manager
 	// Register last
 	// Pandaria: add cluster manager param
 	auth.RegisterLate(ctx, management, manager)
+
+	// Pandaria
+	harbor.Register(ctx, management)
 
 	// Ensure caches are available for user controllers, these are used as part of
 	// registration

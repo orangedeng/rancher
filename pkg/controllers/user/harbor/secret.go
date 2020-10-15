@@ -46,7 +46,7 @@ func Register(ctx context.Context, cluster *config.UserContext) {
 		secrets:           cluster.Core.Secrets(""),
 	}
 
-	cluster.Management.Management.Settings("").AddHandler(ctx, "harborClearUserAnnotationsController", s.clearUserAnnotations)
+	cluster.Management.Management.Settings("").AddHandler(ctx, "harborClearUserSecretController", s.clearUserHarborSecret)
 	cluster.Management.Core.Secrets("").AddHandler(ctx, "harborAuthSecretController", s.syncAuth)
 }
 
@@ -112,7 +112,7 @@ func (c *Controller) syncSecret(auth string) (runtime.Object, error) {
 	return nil, nil
 }
 
-func (c *Controller) clearUserAnnotations(key string, obj *v3.Setting) (runtime.Object, error) {
+func (c *Controller) clearUserHarborSecret(key string, obj *v3.Setting) (runtime.Object, error) {
 	if obj == nil || obj.DeletionTimestamp != nil {
 		return nil, nil
 	}
@@ -120,7 +120,7 @@ func (c *Controller) clearUserAnnotations(key string, obj *v3.Setting) (runtime.
 	if settings.HarborServerURL.Name == obj.Name {
 		harborServerStr := obj.Value
 		if harborServerStr == "" {
-			logrus.Info("harborClearUserAnnotationsController: clean harbor config")
+			logrus.Info("harborClearUserSecretController: clean harbor secret")
 			// remove global admin auth
 			err := c.managementSecrets.DeleteNamespaced(namespace.PandariaGlobalNamespace, harborAdminConfig, &metav1.DeleteOptions{})
 			if err != nil && !apierrors.IsNotFound(err) {
@@ -129,19 +129,6 @@ func (c *Controller) clearUserAnnotations(key string, obj *v3.Setting) (runtime.
 
 			users, _ := c.users.List(metav1.ListOptions{})
 			for _, user := range users.Items {
-				if user.Annotations != nil && (user.Annotations[harborUserAnnotationAuth] != "" || user.Annotations[harborUserAnnotationEmail] != "" || user.Annotations[harborUserAnnotationSyncComplete] != "") {
-					newUser := user.DeepCopy()
-					logrus.Debugf("harborClearUserAnnotationsController: clear harbor auth for user: %s", newUser.Name)
-					annotations := newUser.Annotations
-
-					delete(annotations, harborUserAnnotationAuth)
-					delete(annotations, harborUserAnnotationEmail)
-					delete(annotations, harborUserAnnotationSyncComplete)
-					newUser, err := c.users.Update(newUser)
-					if err != nil && !apierrors.IsConflict(err) {
-						logrus.Errorf("harborClearUserAnnotationsController: clear user annotation error: %v", err)
-					}
-				}
 				// remove auth secrets
 				err = c.managementSecrets.DeleteNamespaced(user.Name, fmt.Sprintf("%s-harbor", user.Name), &metav1.DeleteOptions{})
 				if err != nil && !apierrors.IsNotFound(err) {
