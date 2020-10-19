@@ -355,6 +355,10 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		return nil, err
 	}
 
+	if appAnswers == nil {
+		appAnswers = make(map[string]string)
+	}
+
 	// cannot overwrite mustAppAnswers
 	for mustKey, mustVal := range mustAppAnswers {
 		appAnswers[mustKey] = mustVal
