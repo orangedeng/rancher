@@ -81,8 +81,8 @@ func (ch *clusterHandler) doSync(cluster *mgmtv3.Cluster) error {
 	appName, appTargetNamespace := monitoring.ClusterMonitoringInfo()
 
 	//PANDARIA: Add GPU Monitoring
-	appAnswersGPU, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
-	enabledGPUMonitoring := appAnswersGPU[gpuMonitoringEnabledAnno]
+	_, _, appExtraAnswersGPU, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	enabledGPUMonitoring := appExtraAnswersGPU[gpuMonitoringEnabledAnno]
 
 	if cluster.Spec.EnableClusterMonitoring {
 		appProjectName, err := ch.ensureAppProjectName(cluster.Name, appTargetNamespace)
@@ -355,10 +355,6 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		return nil, err
 	}
 
-	if appAnswers == nil {
-		appAnswers = make(map[string]string)
-	}
-
 	// cannot overwrite mustAppAnswers
 	for mustKey, mustVal := range mustAppAnswers {
 		appAnswers[mustKey] = mustVal
@@ -415,8 +411,8 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 	}
 
 	//PANDARIA: Add GPU Monitoring
-	appAnswersGPU, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
-	enabledGPUMonitoring := appAnswersGPU[gpuMonitoringEnabledAnno]
+	_, _, appExtraAnswersGPU, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	enabledGPUMonitoring := appExtraAnswersGPU[gpuMonitoringEnabledAnno]
 	if enabledGPUMonitoring == "true" {
 		gpuAppCatalogID := settings.SystemGPUMonitoringCatalogID.Get()
 		gpuApp := &v3.App{

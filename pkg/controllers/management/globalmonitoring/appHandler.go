@@ -176,13 +176,16 @@ func UpdateClusterMonitoringAnswers(clusterClient mgmtv3.ClusterInterface, clust
 		}
 	}
 
-	toUpdateAnswers, _, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	toUpdateAnswers, toUpdateValuesYaml, toUpdateExtraAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+
 	if !syncThanosAnswers(toUpdateAnswers, answers) {
 		return nil
 	}
 
 	data := map[string]interface{}{}
 	data["answers"] = toUpdateAnswers
+	data["valuesYaml"] = toUpdateValuesYaml
+	data["extraAnswers"] = toUpdateExtraAnswers
 	b, err := json.Marshal(data)
 	if err != nil {
 		return err
