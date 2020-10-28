@@ -412,7 +412,6 @@ func (p *Provisioner) reconcileCluster(cluster *v3.Cluster, create bool) (*v3.Cl
 		err                                      error
 	)
 
-	needUpdateConfigFile := create || p.getNeedUpdateConfigFile(cluster)
 	if cluster.Name != "local" && !v3.ClusterConditionServiceAccountMigrated.IsTrue(cluster) &&
 		v3.ClusterConditionProvisioned.IsTrue(cluster) {
 		driverName, err := p.validateDriver(cluster)
@@ -420,7 +419,7 @@ func (p *Provisioner) reconcileCluster(cluster *v3.Cluster, create bool) (*v3.Cl
 			return nil, err
 		}
 
-		spec, _, err := p.getConfig(true, cluster.Spec, driverName, cluster.Name, needUpdateConfigFile)
+		spec, _, err := p.getConfig(true, cluster.Spec, driverName, cluster.Name, false)
 		if err != nil {
 			return nil, err
 		}
@@ -447,7 +446,7 @@ func (p *Provisioner) reconcileCluster(cluster *v3.Cluster, create bool) (*v3.Cl
 
 	p.setGenericConfigs(cluster)
 
-	spec, err := p.getSpec(cluster, needUpdateConfigFile)
+	spec, err := p.getSpec(cluster)
 	if err != nil || spec == nil {
 		return cluster, err
 	}
@@ -670,9 +669,7 @@ func skipLocalK3sImported(cluster *v3.Cluster) bool {
 }
 
 // PANDARIA: Return true only when kubernetes version changed
-func (p *Provisioner) getNeedUpdateConfigFile(cluster *v3.Cluster) bool {
-	oldSpec := cluster.Status.AppliedSpec
-	newSpec := cluster.Spec
+func (p *Provisioner) getNeedHandleNetworkPlugin(oldSpec v3.ClusterSpec, newSpec v3.ClusterSpec) bool {
 	needHandleNetworkPlugin := false
 	if oldSpec.RancherKubernetesEngineConfig != nil && newSpec.RancherKubernetesEngineConfig != nil {
 		needHandleNetworkPlugin = oldSpec.RancherKubernetesEngineConfig.Version != newSpec.RancherKubernetesEngineConfig.Version
@@ -680,8 +677,8 @@ func (p *Provisioner) getNeedUpdateConfigFile(cluster *v3.Cluster) bool {
 	return needHandleNetworkPlugin
 }
 
-// PANDARIA: Add field needUpdateConfigFile.True:update config file
-func (p *Provisioner) getConfig(reconcileRKE bool, spec v3.ClusterSpec, driverName, clusterName string, needUpdateConfigFile bool) (*v3.ClusterSpec, interface{}, error) {
+// PANDARIA: Add field needHandleNetworkPlugin.True:update config file
+func (p *Provisioner) getConfig(reconcileRKE bool, spec v3.ClusterSpec, driverName, clusterName string, needHandleNetworkPlugin bool) (*v3.ClusterSpec, interface{}, error) {
 	var v interface{}
 	if spec.GenericEngineConfig == nil {
 		if spec.RancherKubernetesEngineConfig != nil {
@@ -713,9 +710,11 @@ func (p *Provisioner) getConfig(reconcileRKE bool, spec v3.ClusterSpec, driverNa
 		spec.RancherKubernetesEngineConfig.Nodes = nodes
 		spec.RancherKubernetesEngineConfig.SystemImages = *systemImages
 
-		spec, err = p.handleNetworkPlugin(spec, clusterName, needUpdateConfigFile)
-		if err != nil {
-			return nil, nil, err
+		if needHandleNetworkPlugin {
+			spec, err = p.handleNetworkPlugin(spec, clusterName)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		data, _ := convert.EncodeToMap(spec)
@@ -811,8 +810,7 @@ func (p *Provisioner) getSystemImages(spec v3.ClusterSpec) (*v3.RKESystemImages,
 	return &systemImages, nil
 }
 
-// PANDARIA: Add field needUpdateConfigFile.True:update config file
-func (p *Provisioner) getSpec(cluster *v3.Cluster, needUpdateConfigFile bool) (*v3.ClusterSpec, error) {
+func (p *Provisioner) getSpec(cluster *v3.Cluster) (*v3.ClusterSpec, error) {
 	driverName, err := p.validateDriver(cluster)
 	if err != nil {
 		return nil, err
@@ -823,7 +821,7 @@ func (p *Provisioner) getSpec(cluster *v3.Cluster, needUpdateConfigFile bool) (*
 		return nil, err
 	}
 
-	_, oldConfig, err := p.getConfig(false, censoredOldSpec, driverName, cluster.Name, needUpdateConfigFile)
+	_, oldConfig, err := p.getConfig(false, censoredOldSpec, driverName, cluster.Name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -833,7 +831,7 @@ func (p *Provisioner) getSpec(cluster *v3.Cluster, needUpdateConfigFile bool) (*
 		return nil, err
 	}
 
-	_, newConfig, err := p.getConfig(true, censoredSpec, driverName, cluster.Name, needUpdateConfigFile)
+	_, newConfig, err := p.getConfig(true, censoredSpec, driverName, cluster.Name, false)
 	if err != nil {
 		return nil, err
 	}
@@ -842,7 +840,8 @@ func (p *Provisioner) getSpec(cluster *v3.Cluster, needUpdateConfigFile bool) (*
 		return nil, nil
 	}
 
-	newSpec, _, err := p.getConfig(true, cluster.Spec, driverName, cluster.Name, needUpdateConfigFile)
+	newSpec, _, err := p.getConfig(true, cluster.Spec, driverName, cluster.Name,
+		p.getNeedHandleNetworkPlugin(cluster.Status.AppliedSpec, cluster.Spec))
 
 	return newSpec, err
 }
