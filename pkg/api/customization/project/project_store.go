@@ -70,6 +70,11 @@ func (s *projectStore) Update(apiContext *types.APIContext, schema *types.Schema
 		return nil, err
 	}
 
+	// PANDARIA
+	if err := s.validateProjectDisplayName(apiContext, data, id); err != nil {
+		return nil, err
+	}
+
 	return s.Store.Update(apiContext, schema, data, id)
 }
 
@@ -109,16 +114,37 @@ func (s *projectStore) createProjectAnnotation() (string, error) {
 }
 
 func (s *projectStore) validateProjectDisplayName(apiContext *types.APIContext, data map[string]interface{}, id string) error {
-	if _, ok := data["namespaceId"]; !ok {
-		return errors.New("can not find project's namespace")
+	var name, namespace, project string
+
+	// this is update logic.
+	if id != "" {
+		ss := strings.Split(id, ":")
+		if len(ss) != 2 {
+			return errors.New("invalid project id")
+		}
+		namespace = ss[0]
+		project = ss[1]
 	}
 
-	if _, ok := data["name"]; !ok {
-		return errors.New("can not find project's name")
+	if namespace == "" {
+		if _, ok := data["namespaceId"]; ok {
+			namespace = data["namespaceId"].(string)
+		} else {
+			if _, ok := data["clusterId"]; ok {
+				namespace = data["clusterId"].(string)
+			}
+		}
 	}
 
-	namespace := data["namespaceId"].(string)
-	name := data["name"].(string)
+	if _, ok := data["name"]; ok {
+		name = data["name"].(string)
+	} else {
+		p, err := s.projectLister.Get(namespace, project)
+		if err != nil {
+			return errors.New("can not find project's name")
+		}
+		name = p.Spec.DisplayName
+	}
 
 	projects, err := s.projectLister.List(namespace, labels.Everything())
 	if err != nil {
@@ -129,8 +155,11 @@ func (s *projectStore) validateProjectDisplayName(apiContext *types.APIContext, 
 		return nil
 	}
 
-	for _, project := range projects {
-		if project.Spec.DisplayName == name {
+	for _, p := range projects {
+		if project != "" && project == p.Name {
+			continue
+		}
+		if p.Spec.DisplayName == name {
 			return httperror.NewAPIError(httperror.Conflict, "duplicate project name")
 		}
 	}
