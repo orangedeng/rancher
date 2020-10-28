@@ -2,10 +2,12 @@ package resourcequota
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/rancher/norman/types/convert"
 	"github.com/rancher/rancher/pkg/ref"
+	validate "github.com/rancher/rancher/pkg/resourcequota"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -17,9 +19,28 @@ func convertResourceListToLimit(rList corev1.ResourceList) (*v3.ResourceQuotaLim
 		return nil, err
 	}
 
-	convertedMap := map[string]string{}
+	convertedMap := map[string]interface{}{}
+	scPvc := map[string]string{}
+	scStorage := map[string]string{}
+
 	for key, value := range converted {
-		convertedMap[key] = convert.ToString(value)
+		if strings.HasSuffix(key, validate.StorageClassPVCQuotaSuffix) {
+			scName := strings.Split(key, ".")[0]
+			scPvc[scName] = convert.ToString(value)
+		} else if strings.HasSuffix(key, validate.StorageClassStorageQuotaSuffix) {
+			scName := strings.Split(key, ".")[0]
+			scStorage[scName] = convert.ToString(value)
+		} else {
+			convertedMap[key] = convert.ToString(value)
+		}
+	}
+
+	if len(scStorage) > 0 {
+		convertedMap[validate.StorageClassStorageQuotaKey] = scStorage
+	}
+
+	if len(scPvc) > 0 {
+		convertedMap[validate.StorageClassPVCQuotaKey] = scPvc
 	}
 
 	toReturn := &v3.ResourceQuotaLimit{}
@@ -44,7 +65,7 @@ func convertProjectResourceLimitToResourceList(limit *v3.ResourceQuotaLimit) (co
 	if err != nil {
 		return nil, err
 	}
-	limitsMap := map[string]string{}
+	limitsMap := map[string]interface{}{}
 	err = json.Unmarshal(in, &limitsMap)
 	if err != nil {
 		return nil, err
@@ -52,19 +73,48 @@ func convertProjectResourceLimitToResourceList(limit *v3.ResourceQuotaLimit) (co
 
 	limits := corev1.ResourceList{}
 	for key, value := range limitsMap {
-		var resourceName corev1.ResourceName
-		if val, ok := resourceQuotaConversion[key]; ok {
-			resourceName = corev1.ResourceName(val)
-		} else {
-			resourceName = corev1.ResourceName(key)
-		}
+		switch value.(type) {
+		case string:
+			v := value.(string)
+			var resourceName corev1.ResourceName
+			if val, ok := resourceQuotaConversion[key]; ok {
+				resourceName = corev1.ResourceName(val)
+			} else {
+				resourceName = corev1.ResourceName(key)
+			}
 
-		resourceQuantity, err := resource.ParseQuantity(value)
-		if err != nil {
-			return nil, err
-		}
+			resourceQuantity, err := resource.ParseQuantity(v)
+			if err != nil {
+				return nil, err
+			}
 
-		limits[resourceName] = resourceQuantity
+			limits[resourceName] = resourceQuantity
+		case map[string]interface{}:
+			valuemaps := value.(map[string]interface{})
+			for k, v := range valuemaps {
+				valueString, ok := v.(string)
+				if ok {
+					resourceQuantity, err := resource.ParseQuantity(valueString)
+					if err != nil {
+						return nil, err
+					}
+
+					var rn corev1.ResourceName
+					if key == validate.StorageClassStorageQuotaKey {
+						resourceNameStr := fmt.Sprintf("%s.%s", k, validate.StorageClassStorageQuotaSuffix)
+						rn = corev1.ResourceName(resourceNameStr)
+					} else if key == validate.StorageClassPVCQuotaKey {
+						resourceNameStr := fmt.Sprintf("%s.%s", k, validate.StorageClassPVCQuotaSuffix)
+						rn = corev1.ResourceName(resourceNameStr)
+					} else {
+						rn = corev1.ResourceName(key)
+					}
+
+					limits[rn] = resourceQuantity
+				}
+			}
+		default:
+		}
 	}
 	return limits, nil
 }

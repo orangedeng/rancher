@@ -1,6 +1,7 @@
 package resourcequota
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -16,6 +17,14 @@ import (
 
 var (
 	projectLockCache = cache.NewLRUExpireCache(1000)
+)
+
+const (
+	//Pandaria
+	StorageClassPVCQuotaSuffix     = "storageclass.storage.k8s.io/persistentvolumeclaims"
+	StorageClassStorageQuotaSuffix = "storageclass.storage.k8s.io/requests.storage"
+	StorageClassPVCQuotaKey        = "requestsStorageClassPVC"
+	StorageClassStorageQuotaKey    = "requestsStorageClassStorage"
 )
 
 func GetProjectLock(projectID string) *sync.Mutex {
@@ -64,11 +73,38 @@ func ConvertLimitToResourceList(limit *v3.ResourceQuotaLimit) (api.ResourceList,
 		return nil, err
 	}
 	for key, value := range converted {
-		q, err := resource.ParseQuantity(convert.ToString(value))
-		if err != nil {
-			return nil, err
+		switch value.(type) {
+		case string:
+			q, err := resource.ParseQuantity(convert.ToString(value))
+			if err != nil {
+				return nil, err
+			}
+			toReturn[api.ResourceName(key)] = q
+		case map[string]interface{}:
+			valuemaps := value.(map[string]interface{})
+			for k, v := range valuemaps {
+				valueString, ok := v.(string)
+				if ok {
+					quantity, err := resource.ParseQuantity(valueString)
+					if err != nil {
+						return nil, err
+					}
+
+					var rn api.ResourceName
+					if key == StorageClassStorageQuotaKey {
+						resourceNameStr := fmt.Sprintf("%s.%s", k, StorageClassStorageQuotaSuffix)
+						rn = api.ResourceName(resourceNameStr)
+					} else if key == StorageClassPVCQuotaKey {
+						resourceNameStr := fmt.Sprintf("%s.%s", k, StorageClassPVCQuotaSuffix)
+						rn = api.ResourceName(resourceNameStr)
+					} else {
+						rn = api.ResourceName(key)
+					}
+
+					toReturn[rn] = quantity
+				}
+			}
 		}
-		toReturn[api.ResourceName(key)] = q
 	}
 	return toReturn, nil
 }

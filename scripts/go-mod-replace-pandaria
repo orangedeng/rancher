@@ -15,7 +15,7 @@ github.com/tidwall/gjson@v1.6.1
 
 REPLACE="
 github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible
-github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20201109020531-6ff2be6e35c6
+github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20201112020027-d690c9365f08
 github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200903044801-e5debdafef8b
 github.com/rancher/prometheus-auth/pkg/data=github.com/cnrancher/prometheus-auth/pkg/data@v0.0.0-20201013075525-c015fa82fdd7
 github.com/rancher/prometheus-auth/pkg/prom=github.com/cnrancher/prometheus-auth/pkg/prom@v0.0.0-20201013075525-c015fa82fdd7

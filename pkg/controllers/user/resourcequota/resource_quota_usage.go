@@ -2,6 +2,7 @@ package resourcequota
 
 import (
 	"encoding/json"
+	"strings"
 
 	namespaceutil "github.com/rancher/rancher/pkg/namespace"
 	validate "github.com/rancher/rancher/pkg/resourcequota"
@@ -236,6 +237,10 @@ func convertUsageToResourceLimit(rList corev1.ResourceList) (*v3.ResourceQuotaLi
 
 	for k, v := range rList {
 		if k == "pods" || k == "services" || k == "secrets" {
+			assemble[corev1.ResourceName(k)] = v
+		}
+		if strings.HasSuffix(string(k), validate.StorageClassStorageQuotaSuffix) ||
+			strings.HasSuffix(string(k), validate.StorageClassPVCQuotaSuffix) {
 			assemble[corev1.ResourceName(k)] = v
 		}
 	}
