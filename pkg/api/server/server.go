@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/rancher/norman/api/builtin"
 	"github.com/rancher/norman/pkg/subscribe"
@@ -19,6 +20,7 @@ import (
 	"github.com/rancher/rancher/pkg/api/server/managementstored"
 	"github.com/rancher/rancher/pkg/api/server/userstored"
 	"github.com/rancher/rancher/pkg/clustermanager"
+	"github.com/rancher/rancher/pkg/securityfilter"
 	clusterSchema "github.com/rancher/types/apis/cluster.cattle.io/v3/schema"
 	managementSchema "github.com/rancher/types/apis/management.cattle.io/v3/schema"
 	projectSchema "github.com/rancher/types/apis/project.cattle.io/v3/schema"
@@ -45,6 +47,9 @@ func New(ctx context.Context, scaledContext *config.ScaledContext, clusterManage
 		return nil, err
 	}
 	server.AccessControl = scaledContext.AccessControl
+	if os.Getenv("PANDARIA_SECURITY_FILTER") == "true" {
+		server.ResponseControl = securityfilter.NewSecurityFilter(scaledContext)
+	}
 
 	catalog.Register(ctx, scaledContext)
 	dynamicschema.Register(ctx, scaledContext, server.Schemas)

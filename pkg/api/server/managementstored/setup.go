@@ -70,8 +70,10 @@ import (
 	"github.com/rancher/rancher/pkg/nodeconfig"
 	sourcecodeproviders "github.com/rancher/rancher/pkg/pipeline/providers"
 	managementschema "github.com/rancher/types/apis/management.cattle.io/v3/schema"
+	pandariaschema "github.com/rancher/types/apis/mgt.pandaria.io/v3/schema"
 	projectschema "github.com/rancher/types/apis/project.cattle.io/v3/schema"
 	client "github.com/rancher/types/client/management/v3"
+	pandariaclient "github.com/rancher/types/client/mgt/v3"
 	projectclient "github.com/rancher/types/client/project/v3"
 	"github.com/rancher/types/config"
 )
@@ -158,6 +160,9 @@ func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager
 		projectclient.SourceCodeProviderConfigType,
 		projectclient.SourceCodeRepositoryType,
 	)
+
+	factory.BatchCreateCRDs(ctx, config.ManagementStorageContext, schemas, &pandariaschema.Version,
+		pandariaclient.SensitiveFilterType)
 
 	if err := factory.BatchWait(); err != nil {
 		return err
