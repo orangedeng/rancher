@@ -11,8 +11,8 @@ $REQUIRE=@("github.com/vgough/grpc-proxy@v0.0.0-20191207203309-13d1aa04a5a6",
 "github.com/tidwall/gjson@v1.6.1")
 
 $REPLACE=@("github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible",
-"github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20201112020027-d690c9365f08",
-"github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20200903044801-e5debdafef8b",
+"github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20201112062503-52a1c58c1562",
+"github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20201112072054-6d9f578df4cc",
 "github.com/rancher/prometheus-auth/pkg/data=github.com/cnrancher/prometheus-auth/pkg/data@v0.0.0-20201013075525-c015fa82fdd7",
 "github.com/rancher/prometheus-auth/pkg/prom=github.com/cnrancher/prometheus-auth/pkg/prom@v0.0.0-20201013075525-c015fa82fdd7",
 "github.com/prometheus/prometheus=github.com/prometheus/prometheus@v0.0.0-20200626085723-c448ada63d83",

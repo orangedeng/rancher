@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rancher/rancher/pkg/api/customization/clusterregistrationtokens"
 	"github.com/rancher/rancher/pkg/api/customization/gpusharing"
+	"github.com/rancher/rancher/pkg/api/customization/oci"
 	"github.com/rancher/rancher/pkg/api/customization/vsphere"
 	managementapi "github.com/rancher/rancher/pkg/api/server"
 	"github.com/rancher/rancher/pkg/audit"
@@ -155,6 +156,7 @@ func newAuthed(tokenAPI http.Handler, managementAPI http.Handler, k8sproxy http.
 	authed.Path("/meta/gkeServiceAccounts").Handler(capabilities.NewGKEServiceAccountsHandler())
 	authed.Path("/meta/aksVersions").Handler(capabilities.NewAKSVersionsHandler())
 	authed.Path("/meta/aksVirtualNetworks").Handler(capabilities.NewAKSVirtualNetworksHandler())
+	authed.Path("/meta/oci/{resource}").Handler(oci.NewOCIHandler(scaledContext))
 	authed.Path("/meta/vsphere/{field}").Handler(vsphere.NewVsphereHandler(scaledContext))
 	authed.PathPrefix("/meta/proxy").Handler(newProxy(scaledContext))
 	authed.PathPrefix("/meta/auditlog").Handler(newAuditlogProxy(scaledContext)) // Pandaria

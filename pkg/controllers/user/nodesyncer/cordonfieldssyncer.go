@@ -156,8 +156,8 @@ func (d *nodeDrain) drain(ctx context.Context, obj *v3.Node, nodeName string, ca
 				return obj, err
 			}
 			logrus.Infof("Draining node %s in %s with flags %v", nodeName, obj.Namespace,
-				strings.Join(getFlags(nodeObj.Spec.NodeDrainInput), " "))
-			_, msg, err := kubectl.Drain(ctx, kubeConfig, nodeName, getFlags(nodeObj.Spec.NodeDrainInput))
+				strings.Join(nodehelper.GetDrainFlags(nodeObj), " "))
+			_, msg, err := kubectl.Drain(ctx, kubeConfig, nodeName, nodehelper.GetDrainFlags(nodeObj))
 			if err != nil {
 				if ctx.Err() == context.Canceled {
 					stopped = true
@@ -234,11 +234,17 @@ func (d *nodeDrain) getKubeConfig() (*clientcmdapi.Config, error) {
 }
 
 func getFlags(input *v3.NodeDrainInput) []string {
+	var ignoreDaemonSets bool
+	if input.IgnoreDaemonSets == nil {
+		ignoreDaemonSets = true
+	} else {
+		ignoreDaemonSets = *input.IgnoreDaemonSets
+	}
 	return []string{
 		fmt.Sprintf("--delete-local-data=%v", input.DeleteLocalData),
 		fmt.Sprintf("--force=%v", input.Force),
 		fmt.Sprintf("--grace-period=%v", input.GracePeriod),
-		fmt.Sprintf("--ignore-daemonsets=%v", *input.IgnoreDaemonSets),
+		fmt.Sprintf("--ignore-daemonsets=%v", ignoreDaemonSets),
 		fmt.Sprintf("--timeout=%s", convert.ToString(input.Timeout)+"s")}
 }
 

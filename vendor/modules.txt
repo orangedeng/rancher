@@ -2,7 +2,7 @@
 cloud.google.com/go/compute/metadata
 # github.com/Azure/azure-sdk-for-go v36.1.0+incompatible
 github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2017-09-30/containerservice
-github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2018-03-31/containerservice
+github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2019-10-01/containerservice
 github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac
 github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-07-01/network
 github.com/Azure/azure-sdk-for-go/services/preview/operationalinsights/mgmt/2015-11-01-preview/operationalinsights
@@ -330,6 +330,11 @@ github.com/opencontainers/image-spec/specs-go/v1
 # github.com/opencontainers/runc v1.0.0-rc10
 github.com/opencontainers/runc/libcontainer/system
 github.com/opencontainers/runc/libcontainer/user
+# github.com/oracle/oci-go-sdk v18.0.0+incompatible
+github.com/oracle/oci-go-sdk/common
+github.com/oracle/oci-go-sdk/containerengine
+github.com/oracle/oci-go-sdk/core
+github.com/oracle/oci-go-sdk/identity
 # github.com/pborman/uuid v1.2.0
 github.com/pborman/uuid
 # github.com/pelletier/go-toml v1.2.0
@@ -364,7 +369,7 @@ github.com/rancher/dynamiclistener/server
 github.com/rancher/dynamiclistener/storage/file
 github.com/rancher/dynamiclistener/storage/kubernetes
 github.com/rancher/dynamiclistener/storage/memory
-# github.com/rancher/kontainer-engine v0.0.4-dev.0.20200805195909-3e842ecc0384
+# github.com/rancher/kontainer-engine v0.0.4-dev.0.20201106160106-4442123b5eaa
 github.com/rancher/kontainer-engine/cluster
 github.com/rancher/kontainer-engine/drivers/aks
 github.com/rancher/kontainer-engine/drivers/eks
@@ -438,7 +443,7 @@ github.com/rancher/rdns-server/model
 # github.com/rancher/remotedialer v0.2.6-0.20200401224317-04cc22157b83
 github.com/rancher/remotedialer
 github.com/rancher/remotedialer/metrics
-# github.com/rancher/rke v1.1.6
+# github.com/rancher/rke v1.1.11
 github.com/rancher/rke/addons
 github.com/rancher/rke/authz
 github.com/rancher/rke/cloudprovider
@@ -505,7 +510,7 @@ github.com/rancher/system-upgrade-controller/pkg/apis/upgrade.cattle.io/v1
 github.com/rancher/system-upgrade-controller/pkg/condition
 github.com/rancher/system-upgrade-controller/pkg/generated/clientset/versioned/scheme
 github.com/rancher/system-upgrade-controller/pkg/generated/clientset/versioned/typed/upgrade.cattle.io/v1
-# github.com/rancher/types v0.0.0-20200812201428-42b3abe8e39e
+# github.com/rancher/types v0.0.0-20201022171446-1df760cc0093
 github.com/rancher/types/apis/apiregistration.k8s.io/v1
 github.com/rancher/types/apis/apps/v1
 github.com/rancher/types/apis/autoscaling/v2beta2
