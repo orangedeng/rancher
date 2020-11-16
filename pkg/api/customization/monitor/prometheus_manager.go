@@ -29,7 +29,7 @@ type Queries struct {
 	eg  *errgroup.Group
 }
 
-func NewPrometheusQuery(ctx context.Context, clusterName, authToken, svcNamespace, svcName, svcPort string, dialerFactory dialer.Factory, userContext *config.UserContext) (*Queries, error) {
+func NewPrometheusQuery(ctx context.Context, clusterName, authToken, svcNamespace, svcName, svcPort string, groups []string, dialerFactory dialer.Factory, userContext *config.UserContext) (*Queries, error) {
 	ep, err := userContext.Core.Endpoints(svcNamespace).Get(svcName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s/%s endpoints, %v", svcNamespace, svcName, err)
@@ -47,7 +47,7 @@ func NewPrometheusQuery(ctx context.Context, clusterName, authToken, svcNamespac
 
 	endpoint := fmt.Sprintf("http://%s:%s", ip, svcPort)
 
-	api, err := newPrometheusAPI(dial, endpoint, authToken)
+	api, err := newPrometheusAPI(dial, endpoint, authToken, groups, userContext)
 	if err != nil {
 		return nil, err
 	}
@@ -163,10 +163,18 @@ type authTransport struct {
 	*http.Transport
 
 	userID string
+	groups []string
 }
 
 func (auth authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add("X-RANCHER-USER", auth.userID)
+	req.Header.Add("X-Rancher-User", auth.userID)
+
+	if auth.groups != nil {
+		for _, v := range auth.groups {
+			req.Header.Add("X-Rancher-Group", v)
+		}
+	}
+
 	return auth.Transport.RoundTrip(req)
 }
 
@@ -179,10 +187,11 @@ func newHTTPTransport(dial dialer.Dialer) *http.Transport {
 	}
 }
 
-func newPrometheusAPI(dial dialer.Dialer, url, userID string) (promapiv1.API, error) {
+func newPrometheusAPI(dial dialer.Dialer, url, userID string, groups []string, userContext *config.UserContext) (promapiv1.API, error) {
 	auth := authTransport{
 		Transport: newHTTPTransport(dial),
 		userID:    userID,
+		groups:    groups,
 	}
 
 	cfg := promapi.Config{

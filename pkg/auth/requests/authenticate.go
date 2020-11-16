@@ -129,9 +129,9 @@ func (a *tokenAuthenticator) Authenticate(req *http.Request) (bool, string, stri
 		displayname = u.Username
 	}
 
-	req.Header.Set("X-RANCHER-USER", token.UserID)
+	req.Header.Set("X-Rancher-User", token.UserID)
 	for _, v := range groups {
-		req.Header.Add("X-RANCHER-GROUP", v)
+		req.Header.Add("X-Rancher-Group", v)
 	}
 
 	//PANDARIA: add user displayname

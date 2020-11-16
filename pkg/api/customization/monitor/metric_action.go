@@ -40,6 +40,8 @@ func (h *MetricHandler) Action(actionName string, action *types.Action, apiConte
 		return fmt.Errorf("can't find user")
 	}
 
+	groups := apiContext.Request.Header["Impersonate-Group"]
+
 	switch actionName {
 	case querycluster, queryproject:
 		var comm v3.CommonQueryMetricInput
@@ -109,7 +111,7 @@ func (h *MetricHandler) Action(actionName string, action *types.Action, apiConte
 		reqContext, cancel := context.WithTimeout(context.Background(), prometheusReqTimeout)
 		defer cancel()
 
-		prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
+		prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, groups, h.dialerFactory, userContext)
 		if err != nil {
 			return err
 		}
@@ -175,7 +177,7 @@ func (h *MetricHandler) Action(actionName string, action *types.Action, apiConte
 		reqContext, cancel := context.WithTimeout(context.Background(), prometheusReqTimeout)
 		defer cancel()
 
-		prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
+		prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, groups, h.dialerFactory, userContext)
 		if err != nil {
 			return err
 		}

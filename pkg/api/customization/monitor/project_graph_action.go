@@ -76,6 +76,8 @@ func (h *ProjectGraphHandler) QuerySeriesAction(actionName string, action *types
 		return fmt.Errorf("can't find user")
 	}
 
+	groups := apiContext.Request.Header["Impersonate-Group"]
+
 	if inputParser.Input.Filters["resourceType"] == "istioproject" {
 		if inputParser.Input.MetricParams["namespace"] == "" {
 			return fmt.Errorf("no namespace found")
@@ -128,7 +130,7 @@ func (h *ProjectGraphHandler) QuerySeriesAction(actionName string, action *types
 		}
 	}
 
-	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
+	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, groups, h.dialerFactory, userContext)
 	if err != nil {
 		return err
 	}

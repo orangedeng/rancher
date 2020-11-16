@@ -78,6 +78,8 @@ func (h *ClusterGraphHandler) QuerySeriesAction(actionName string, action *types
 		return fmt.Errorf("can't find user")
 	}
 
+	groups := apiContext.Request.Header["Impersonate-Group"]
+
 	if inputParser.Input.Filters["resourceType"] == "istiocluster" {
 		inputParser.Input.MetricParams["namespace"] = ".*"
 
@@ -94,7 +96,7 @@ func (h *ClusterGraphHandler) QuerySeriesAction(actionName string, action *types
 		svcName, svcNamespace, svcPort = monitorutil.ClusterPrometheusEndpoint()
 	}
 
-	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, h.dialerFactory, userContext)
+	prometheusQuery, err := NewPrometheusQuery(reqContext, clusterName, userID, svcNamespace, svcName, svcPort, groups, h.dialerFactory, userContext)
 	if err != nil {
 		return err
 	}
