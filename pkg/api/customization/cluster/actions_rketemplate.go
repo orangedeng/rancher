@@ -3,16 +3,19 @@ package cluster
 import (
 	"fmt"
 	"net/http"
-
 	"time"
 
+	"github.com/rancher/kontainer-engine/service"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/parse"
 	"github.com/rancher/norman/types"
+	"github.com/rancher/rancher/pkg/clusterprovisioninglogger"
+	"github.com/rancher/rancher/pkg/controllers/management/clusterprovisioner"
 	"github.com/rancher/rancher/pkg/controllers/management/rbac"
 	"github.com/rancher/rancher/pkg/namespace"
 	"github.com/rancher/rancher/pkg/ref"
+	"github.com/rancher/rke/services"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	mgmtclient "github.com/rancher/types/client/management/v3"
 	"github.com/sirupsen/logrus"
@@ -214,4 +217,117 @@ func (a ActionHandler) cleanup(err error, clusterTemplate *v3.ClusterTemplate) {
 			time.Sleep(retryIntervalInMs * time.Millisecond)
 		}
 	}
+}
+
+// PANDARIA: RefreshNetworkAddons
+func (a ActionHandler) RefreshNetworkAddons(actionName string, action *types.Action, apiContext *types.APIContext) error {
+	cluster, err := a.ClusterClient.Get(apiContext.ID, v1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	updatedCluster := cluster.DeepCopy()
+	applied := updatedCluster.Status.AppliedSpec
+	addonsName := clusterprovisioner.GetAddonsName(applied)
+	if addonsName == "" {
+		return fmt.Errorf("can not get network addons name of cluster %s", cluster.Name)
+	}
+
+	if updatedCluster.Spec, err = clusterprovisioner.HandleNetworkPlugin(&applied, updatedCluster.Name, addonsName, true, a.NetworkAddonsConfigLister, a.NetworkAddonsConfig); err != nil {
+		return err
+	}
+
+	// Driver update
+	ctx, logger := clusterprovisioninglogger.NewLogger(a.ClusterClient, updatedCluster, v3.ClusterConditionUpdated)
+	defer func() { _ = logger.Close() }()
+
+	applied = cleanRKE(applied)
+	spec := cleanRKE(updatedCluster.Spec)
+
+	if spec.RancherKubernetesEngineConfig != nil && spec.RancherKubernetesEngineConfig.Services.Etcd.Snapshot == nil &&
+		applied.RancherKubernetesEngineConfig != nil && applied.RancherKubernetesEngineConfig.Services.Etcd.Snapshot == nil {
+		_false := false
+		updatedCluster.Spec.RancherKubernetesEngineConfig.Services.Etcd.Snapshot = &_false
+	}
+
+	if newCluster, err := a.ClusterClient.Update(updatedCluster); err == nil {
+		updatedCluster = newCluster
+	}
+
+	kontainerDriver, err := a.KontainerDriverLister.Get("", service.RancherKubernetesEngineDriverName)
+	if err != nil {
+		return err
+	}
+
+	if _, _, _, err := a.EngineService.Update(ctx, updatedCluster.Name, kontainerDriver, spec); err != nil {
+		return nil
+	}
+
+	apiContext.WriteResponse(http.StatusOK, make(map[string]interface{}))
+	return nil
+}
+
+// PANDARIA: CheckNetworkAddons returns info if addons has update
+func (a ActionHandler) CheckNetworkAddons(actionName string, action *types.Action, apiContext *types.APIContext) error {
+	response := map[string]interface{}{
+		"type":       "needUpdateNetworkAddons",
+		"needUpdate": false,
+	}
+	cluster, err := a.ClusterClient.Get(apiContext.ID, v1.GetOptions{})
+	if err != nil {
+		response["message"] = fmt.Sprintf("network addons get cluster info error: %v", err)
+		apiContext.WriteResponse(http.StatusInternalServerError, response)
+		return nil
+	}
+	if cluster.Status.AppliedSpec.RancherKubernetesEngineConfig == nil ||
+		len(cluster.Status.AppliedSpec.RancherKubernetesEngineConfig.Nodes) <= 0 {
+		apiContext.WriteResponse(http.StatusOK, response)
+		return nil
+	}
+	updatedCluster := cluster.DeepCopy()
+	applied := updatedCluster.Status.AppliedSpec
+	addonsName := clusterprovisioner.GetAddonsName(applied)
+	if addonsName == "" {
+		response["message"] = fmt.Sprintf("network addons is not supported of cluster %s", cluster.Name)
+		apiContext.WriteResponse(http.StatusInternalServerError, response)
+		return nil
+	}
+
+	configContent, err := clusterprovisioner.GetLatestTemplate(addonsName)
+	if err != nil {
+		response["message"] = fmt.Sprintf("network addons read template error of cluster %s: %v", cluster.Name, err)
+		apiContext.WriteResponse(http.StatusInternalServerError, response)
+		return nil
+	}
+
+	configMap, queryErr := a.NetworkAddonsConfigLister.Get(cluster.Name, clusterprovisioner.PluginConfigName)
+	if queryErr != nil {
+		response["message"] = fmt.Sprintf("network addons query config map error of cluster %s: %v", cluster.Name, queryErr)
+		apiContext.WriteResponse(http.StatusInternalServerError, response)
+		return nil
+	}
+	if configMap != nil && configMap.Data[addonsName] != configContent {
+		response["needUpdate"] = true
+	}
+	apiContext.WriteResponse(http.StatusOK, response)
+	return nil
+}
+
+// PANDARIA: cleanRKE returns info without node has only worker role
+func cleanRKE(spec v3.ClusterSpec) v3.ClusterSpec {
+	if spec.RancherKubernetesEngineConfig == nil {
+		return spec
+	}
+
+	result := spec.DeepCopy()
+
+	var filteredNodes []v3.RKEConfigNode
+	for _, node := range spec.RancherKubernetesEngineConfig.Nodes {
+		if len(node.Role) == 1 && node.Role[0] == services.WorkerRole {
+			continue
+		}
+		filteredNodes = append(filteredNodes, node)
+	}
+
+	result.RancherKubernetesEngineConfig.Nodes = filteredNodes
+	return *result
 }

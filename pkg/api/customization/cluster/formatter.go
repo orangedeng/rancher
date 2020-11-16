@@ -102,6 +102,10 @@ func (f *Formatter) Formatter(request *types.APIContext, resource *types.RawReso
 		resource.AddAction(request, v3.ClusterActionViewMonitoring)
 	}
 
+	// PANDARIA: Support manual update network addons
+	resource.AddAction(request, v3.ClusterActionCheckNetworkAddons)
+	resource.AddAction(request, v3.ClusterActionRefreshNetworkAddons)
+
 	if gkeConfig, ok := resource.Values["googleKubernetesEngineConfig"]; ok {
 		configMap, ok := gkeConfig.(map[string]interface{})
 		if !ok {

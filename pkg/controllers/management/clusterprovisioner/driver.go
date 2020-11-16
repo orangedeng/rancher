@@ -10,6 +10,7 @@ import (
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -92,6 +93,13 @@ func (p *Provisioner) driverRemove(cluster *v3.Cluster, forceRemove bool) error 
 		}
 
 		kontainerDriver, err := p.getKontainerDriver(spec)
+		// PANDARIA: delete the config map of network addons `macvlan+canal` or `macvlan+flannel`
+		if spec.RancherKubernetesEngineConfig != nil {
+			if _, err := p.NetworkAddonsConfigLister.Get(cluster.Name, PluginConfigName); err == nil {
+				_ = p.NetworkAddonsConfig.DeleteNamespaced(cluster.Name, PluginConfigName, &metav1.DeleteOptions{})
+			}
+		}
+
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logrus.Warnf("Could not find kontainer driver for cluster removal [%v]", err)

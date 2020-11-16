@@ -14,58 +14,85 @@ import (
 
 	"github.com/rancher/rancher/pkg/image"
 	"github.com/rancher/rancher/pkg/settings"
+	cv1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	pluginMultusFlannel = "multus-flannel-macvlan"
 	pluginMultusCanal   = "multus-canal-macvlan"
 	extraPluginName     = "pandariaExtraPluginName"
+	pathTemplateEnv     = "NETWORK_ADDONS_TEMPLATE_DIR"
+	pathConfigEnv       = "NETWORK_ADDONS_DIR"
+	PluginConfigName    = "rke-user-includes-addons"
 )
 
-func (p *Provisioner) handleNetworkPlugin(old v3.ClusterSpec, clusterName string) (v3.ClusterSpec, error) {
+func (p *Provisioner) handleNetworkPlugin(old v3.ClusterSpec, clusterName string, updateClusterConfigFile bool) (v3.ClusterSpec, error) {
 	spec := old.DeepCopy()
 
-	if spec.RancherKubernetesEngineConfig != nil {
-		switch spec.RancherKubernetesEngineConfig.Network.Plugin {
-		case pluginMultusFlannel:
-			err := p.handleMultusFlannel(spec.RancherKubernetesEngineConfig, clusterName)
-			return *spec, err
-		case pluginMultusCanal:
-			err := p.handleMultusCanal(spec.RancherKubernetesEngineConfig, clusterName)
-			return *spec, err
-		case "none":
-			switch spec.RancherKubernetesEngineConfig.Network.Options[extraPluginName] {
-			case pluginMultusFlannel:
-				err := p.handleMultusFlannel(spec.RancherKubernetesEngineConfig, clusterName)
-				return *spec, err
-			case pluginMultusCanal:
-				err := p.handleMultusCanal(spec.RancherKubernetesEngineConfig, clusterName)
-				return *spec, err
-			}
-		}
+	pluginName := GetAddonsName(*spec)
+	if pluginName == "" {
+		return *spec, nil
 	}
 
-	return *spec, nil
+	return HandleNetworkPlugin(spec, clusterName, pluginName, updateClusterConfigFile, p.NetworkAddonsConfigLister, p.NetworkAddonsConfig)
 }
 
-func (p *Provisioner) handleMultusFlannel(cfg *v3.RancherKubernetesEngineConfig, clusterName string) error {
-	template := fmt.Sprintf("%s%s%s.yaml",
-		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusFlannel)
+func HandleNetworkPlugin(spec *v3.ClusterSpec, clusterName, networkAddonName string, updateClusterConfigFile bool, networkAddonsConfigLister cv1.ConfigMapLister, networkAddonsConfig cv1.ConfigMapInterface) (v3.ClusterSpec, error) {
+	clusterConfigPath := fmt.Sprintf("%s.%s", fmt.Sprintf("%s%s%s.yaml", os.Getenv(pathConfigEnv), string(os.PathSeparator), networkAddonName), clusterName)
 
-	if _, err := os.Stat(template); err != nil {
-		logrus.Errorf("networkaddons: %v", err)
-		return err
+	var (
+		configContent string
+		err           error
+	)
+	if updateClusterConfigFile {
+		configContent, err = GetLatestTemplate(networkAddonName)
+		if err != nil {
+			return v3.ClusterSpec{}, err
+		}
+		// create or update config map
+		configMap, queryErr := networkAddonsConfigLister.Get(clusterName, PluginConfigName)
+		canUpdateConfigMap := true
+		if queryErr != nil {
+			if k8serrors.IsNotFound(queryErr) {
+				canUpdateConfigMap = false
+			} else {
+				return v3.ClusterSpec{}, queryErr
+			}
+		}
+
+		if configMap != nil && canUpdateConfigMap {
+			configMap.Data[networkAddonName] = configContent
+			if _, err := networkAddonsConfig.Update(configMap); err != nil {
+				return v3.ClusterSpec{}, err
+			}
+		} else {
+			if _, err := networkAddonsConfig.Create(newNetWorkAddonsConfigMap(clusterName, networkAddonName, configContent)); err != nil {
+				return v3.ClusterSpec{}, err
+			}
+		}
+	} else {
+		configMap, queryErr := networkAddonsConfigLister.Get(clusterName, PluginConfigName)
+		if queryErr != nil {
+			return v3.ClusterSpec{}, fmt.Errorf("network addons error when query config: %s", queryErr.Error())
+		}
+		configContent = configMap.Data[networkAddonName]
 	}
 
-	b, err := ioutil.ReadFile(template)
-	if err != nil {
-		logrus.Errorf("networkaddons: %v", err)
-		return err
+	var (
+		content string
+		cfg     = spec.RancherKubernetesEngineConfig
+	)
+	switch networkAddonName {
+	case pluginMultusFlannel:
+		content = applyMultusFlannelOption(configContent, cfg.Network.Options)
+	case pluginMultusCanal:
+		content = applyMultusCanalOption(configContent, cfg.Network.Options)
 	}
-
-	content := applyMultusFlannelOption(string(b), cfg.Network.Options)
 
 	rkeRegistry := getDefaultRKERegistry(cfg.PrivateRegistries)
 	logrus.Debugf("networkaddons: got rke registry: %s", rkeRegistry)
@@ -76,28 +103,62 @@ func (p *Provisioner) handleMultusFlannel(cfg *v3.RancherKubernetesEngineConfig,
 	}
 	content = resolveControllerClusterCIDR(cfg.Services.KubeController.ClusterCIDR, content)
 
-	path := fmt.Sprintf("%s.%s", template, clusterName)
-	err = ioutil.WriteFile(path, []byte(content), 0644)
-	if err != nil {
+	// update cluster config file
+	if err := ioutil.WriteFile(clusterConfigPath, []byte(content), 0644); err != nil {
 		logrus.Errorf("networkaddons: %v", err)
-		return err
+		return v3.ClusterSpec{}, err
 	}
 
 	// rewrite network option and insert addons_include
 	cfg.Network.Plugin = "none"
-	cfg.Network.Options[extraPluginName] = pluginMultusFlannel
+	cfg.Network.Options[extraPluginName] = networkAddonName
 
 	if cfg.AddonsInclude == nil {
 		cfg.AddonsInclude = []string{}
 	} else {
-		cfg.AddonsInclude = removeContainString(cfg.AddonsInclude, pluginMultusFlannel)
+		cfg.AddonsInclude = removeContainString(cfg.AddonsInclude, networkAddonName)
 	}
-	cfg.AddonsInclude = append([]string{path}, cfg.AddonsInclude...)
+	cfg.AddonsInclude = append([]string{clusterConfigPath}, cfg.AddonsInclude...)
 
 	// add certs args
 	setCertsArgs(cfg)
+	return *spec, nil
+}
 
-	return nil
+// GetAddonsName will return the network addons name if possible
+func GetAddonsName(spec v3.ClusterSpec) string {
+	if spec.RancherKubernetesEngineConfig != nil {
+		switch spec.RancherKubernetesEngineConfig.Network.Plugin {
+		case pluginMultusFlannel:
+			return pluginMultusFlannel
+		case pluginMultusCanal:
+			return pluginMultusCanal
+		case "none":
+			switch spec.RancherKubernetesEngineConfig.Network.Options[extraPluginName] {
+			case pluginMultusFlannel:
+				return pluginMultusFlannel
+			case pluginMultusCanal:
+				return pluginMultusCanal
+			}
+		}
+	}
+	return ""
+}
+
+// GetLatestTemplate will return []byte of the latest template file
+func GetLatestTemplate(networkAddonName string) (string, error) {
+	templatePath := fmt.Sprintf("%s%s%s.yaml", os.Getenv(pathTemplateEnv), string(os.PathSeparator), networkAddonName)
+	if _, err := os.Stat(templatePath); err != nil {
+		logrus.Errorf("networkaddons: %v", err)
+		return "", err
+	}
+
+	b, err := ioutil.ReadFile(templatePath)
+	if err != nil {
+		logrus.Errorf("networkaddons: %v", err)
+		return "", err
+	}
+	return string(b), nil
 }
 
 func applyMultusFlannelOption(addons string, option map[string]string) string {
@@ -106,55 +167,6 @@ func applyMultusFlannelOption(addons string, option map[string]string) string {
 	}
 
 	return addons
-}
-
-func (p *Provisioner) handleMultusCanal(cfg *v3.RancherKubernetesEngineConfig, clusterName string) error {
-	template := fmt.Sprintf("%s%s%s.yaml",
-		os.Getenv("NETWORK_ADDONS_DIR"), string(os.PathSeparator), pluginMultusCanal)
-
-	if _, err := os.Stat(template); err != nil {
-		logrus.Errorf("networkaddons: %v", err)
-		return err
-	}
-
-	b, err := ioutil.ReadFile(template)
-	if err != nil {
-		logrus.Errorf("networkaddons: %v", err)
-		return err
-	}
-
-	content := applyMultusCanalOption(string(b), cfg.Network.Options)
-
-	rkeRegistry := getDefaultRKERegistry(cfg.PrivateRegistries)
-	logrus.Debugf("networkaddons: got rke registry: %s", rkeRegistry)
-	if rkeRegistry != "" {
-		content = resolveRKERegistry(content, rkeRegistry)
-	} else {
-		content = resolveSystemRegistry(content)
-	}
-	content = resolveControllerClusterCIDR(cfg.Services.KubeController.ClusterCIDR, content)
-
-	path := fmt.Sprintf("%s.%s", template, clusterName)
-	err = ioutil.WriteFile(path, []byte(content), 0644)
-	if err != nil {
-		logrus.Errorf("networkaddons: %v", err)
-		return err
-	}
-
-	// rewrite network option and insert addons_include
-	cfg.Network.Plugin = "none"
-	cfg.Network.Options[extraPluginName] = pluginMultusCanal
-	if cfg.AddonsInclude == nil {
-		cfg.AddonsInclude = []string{}
-	} else {
-		cfg.AddonsInclude = removeContainString(cfg.AddonsInclude, pluginMultusCanal)
-	}
-	cfg.AddonsInclude = append([]string{path}, cfg.AddonsInclude...)
-
-	// add certs args
-	setCertsArgs(cfg)
-
-	return nil
 }
 
 func applyMultusCanalOption(addons string, option map[string]string) string {
@@ -270,4 +282,17 @@ func removeContainString(in []string, s string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+func newNetWorkAddonsConfigMap(clusterName, networkAddonName, configContent string) *v1.ConfigMap {
+	return &v1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      PluginConfigName,
+			Namespace: clusterName,
+		},
+		Data: map[string]string{networkAddonName: configContent},
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rancher/kontainer-engine/service"
 	"github.com/rancher/norman/store/crd"
 	"github.com/rancher/norman/store/proxy"
 	"github.com/rancher/norman/store/subtype"
@@ -64,6 +65,7 @@ import (
 	"github.com/rancher/rancher/pkg/auth/providers"
 	"github.com/rancher/rancher/pkg/auth/tokens"
 	"github.com/rancher/rancher/pkg/clustermanager"
+	"github.com/rancher/rancher/pkg/controllers/management/clusterprovisioner"
 	"github.com/rancher/rancher/pkg/controllers/management/compose/common"
 	md "github.com/rancher/rancher/pkg/controllers/management/kontainerdrivermetadata"
 	"github.com/rancher/rancher/pkg/namespace"
@@ -277,6 +279,11 @@ func Clusters(schemas *types.Schemas, managementContext *config.ScaledContext, c
 		CisConfigLister:               managementContext.Management.CisConfigs("").Controller().Lister(),
 		CisBenchmarkVersionClient:     managementContext.Management.CisBenchmarkVersions(""),
 		CisBenchmarkVersionLister:     managementContext.Management.CisBenchmarkVersions("").Controller().Lister(),
+		// PANDARIA: Support manual update network addons
+		NetworkAddonsConfig:       managementContext.Core.ConfigMaps(""),
+		NetworkAddonsConfigLister: managementContext.Core.ConfigMaps("").Controller().Lister(),
+		EngineService:             service.NewEngineService(clusterprovisioner.NewPersistentStore(managementContext.Core.Namespaces(""), managementContext.Core)),
+		KontainerDriverLister:     managementContext.Management.KontainerDrivers("").Controller().Lister(),
 	}
 
 	schema.ActionHandler = handler.ClusterActionHandler
