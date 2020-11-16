@@ -104,12 +104,12 @@ func NonResourceURLMatches(rule *rbacv1.PolicyRule, requestedURL string) bool {
 		if ruleURL == rbacv1.NonResourceAll {
 			return true
 		}
-		if ruleURL == requestedURL {
+		if strings.ToLower(ruleURL) == strings.ToLower(requestedURL) {
 			return true
 		}
 
 		paramRules := strings.Split(ruleURL, "/*")
-		if strings.Contains(ruleURL, "*") && strings.HasPrefix(requestedURL, strings.TrimRight(paramRules[0], "*")) {
+		if strings.Contains(ruleURL, "*") && strings.HasPrefix(strings.ToLower(requestedURL), strings.TrimRight(strings.ToLower(paramRules[0]), "*")) {
 			return true
 		}
 	}

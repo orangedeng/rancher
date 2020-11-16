@@ -86,7 +86,7 @@ func (s *SecurityFilter) getRequestedResourceFilterRules(apiContext *types.APICo
 		for _, rule := range rules {
 			if rule.NonResourceURLs != nil {
 				// we don't need to check request method because all links/actions generate by get method
-				if NonResourceURLMatches(&rule.PolicyRule, strings.ToLower(apiContext.Request.URL.RequestURI())) {
+				if NonResourceURLMatches(&rule.PolicyRule, apiContext.Request.URL.RequestURI()) {
 					filterRules = append(filterRules, rule)
 				}
 			} else {
@@ -112,6 +112,7 @@ func (s *SecurityFilter) filter(apiContext *types.APIContext, schema *types.Sche
 	if err != nil {
 		logrus.Errorf("SecurityFilter: Failed to get user global role bindings, got error: %v", err)
 	}
+	logrus.Debugf("SecurityFilter: get user global roles %v", globalRoles)
 	// 2. get crtb roles
 	clusterRoleTemplateBindingList := []*v3.ClusterRoleTemplateBinding{}
 	crtbList, err := s.crtbLister.List("", labels.Everything())
@@ -434,10 +435,10 @@ func computeFilterRules(accessRoles []string, filterRules []pandariav3.Filter, r
 			}
 		}
 		for _, url := range roleFilterUrls {
-			if _, ok := controlUrls[url]; !ok {
-				controlUrls[url] = 1
+			if _, ok := controlUrls[strings.ToLower(url)]; !ok {
+				controlUrls[strings.ToLower(url)] = 1
 			} else {
-				controlUrls[url] = controlUrls[url] + 1
+				controlUrls[strings.ToLower(url)] = controlUrls[strings.ToLower(url)] + 1
 			}
 		}
 	}
@@ -732,7 +733,7 @@ func filterActions(actions map[string]string, urlFilters []pandariav3.Filter, ve
 				logrus.Errorf("SecurityFilter: parse url of links %s error: %v", path, err)
 				continue
 			}
-			if IsActionURLFit(linksURL.RequestURI(), filterURL) && VerbMatches(&filterRule.PolicyRule, verb) {
+			if IsActionURLFit(strings.ToLower(linksURL.RequestURI()), filterURL) && VerbMatches(&filterRule.PolicyRule, verb) {
 				delete(actions, key)
 			}
 		}
