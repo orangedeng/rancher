@@ -84,7 +84,8 @@ var (
 	InitialDockerRootDir              = NewSetting("initial-docker-root-dir", "/var/lib/docker")
 	SystemCatalog                     = NewSetting("system-catalog", "external")                                                                                    // Options are 'external' or 'bundled'
 	IgnoreNodeName                    = NewSetting("ignore-node-name", "")                                                                                          // nodes to ignore when syncing v1.node to v3.node
-	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.2") // Pandaria gpu management
+	SystemGPUManagementCatalogID      = NewSetting("system-gpu-management-catalog-id", "catalog://?catalog=pandaria&template=rancher-gpu-management&version=0.0.3") // Pandaria gpu management
+	SystemGPUManagementSchedulerName  = NewSetting("system-gpu-management-scheduler-name", "rancher-gpushare-scheduler")                                            // Pandaria GPU Management Scheduler name
 	AuditlogServer                    = NewSetting("auditlog-server-url", "")                                                                                       //Pandria auditlog
 	UISessionLogoutMinutes            = NewSetting("ui-session-logout-minutes", "960")                                                                              // Pandaria logout minutes
 	HarborServerURL                   = NewSetting("harbor-server-url", "")                                                                                         // PANDARIA: harbor-server-url

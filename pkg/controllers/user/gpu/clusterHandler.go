@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	creatorIDAnno              = "field.cattle.io/creatorId"
-	appSchedulerExtenderAnswer = "schedulerextender.ports.nodeport"
+	creatorIDAnno          = "field.cattle.io/creatorId"
+	appSchedulerNameAnswer = "schedulerextender.schedulerName"
 )
 
 type clusterHandler struct {
@@ -113,10 +113,10 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		return err
 	}
 
-	schdNodePort := cluster.Spec.GPUSchedulerNodePort
-
-	appAnswers := map[string]string{
-		appSchedulerExtenderAnswer: schdNodePort,
+	appAnswers := map[string]string{}
+	schedulerName := settings.SystemGPUManagementSchedulerName.Get()
+	if schedulerName != "" {
+		appAnswers[appSchedulerNameAnswer] = schedulerName
 	}
 
 	appCatalogID := settings.SystemGPUManagementCatalogID.Get()
