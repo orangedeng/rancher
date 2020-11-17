@@ -469,7 +469,27 @@ func completeQuota(existingQuota *v3.NamespaceResourceQuota, defaultQuota *v3.Na
 	}
 	for key, value := range existingLimitMap {
 		if _, ok := newLimitMap[key]; ok {
-			newLimitMap[key] = value
+			if key == validate.StorageClassPVCQuotaKey ||
+				key == validate.StorageClassStorageQuotaKey {
+				existingStorageClassQuotaMap, err := convert.EncodeToMap(value)
+				if err != nil {
+					return nil, err
+				}
+
+				newStorageClassQuotaMap, err := convert.EncodeToMap(newLimitMap[key])
+				if err != nil {
+					return nil, err
+				}
+
+				for k, v := range existingStorageClassQuotaMap {
+					if _, ok := newStorageClassQuotaMap[k]; ok {
+						newStorageClassQuotaMap[k] = v
+					}
+				}
+				newLimitMap[key] = newStorageClassQuotaMap
+			} else {
+				newLimitMap[key] = value
+			}
 		}
 	}
 
