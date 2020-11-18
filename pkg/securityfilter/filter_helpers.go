@@ -52,7 +52,7 @@ func (a *RequestAttributes) RulesAllow(rules ...rbacv1.PolicyRule) bool {
 
 func (a *RequestAttributes) RuleAllows(rule *rbacv1.PolicyRule) bool {
 	if rule.NonResourceURLs != nil {
-		return VerbMatches(rule, a.Verb) && NonResourceURLMatches(rule, a.Path)
+		return VerbMatches(rule, a.Verb) && NonResourceURLMatches(rule, a.Path, "")
 	}
 
 	return VerbMatches(rule, a.Verb) && APIGroupMatches(rule, a.APIGroup) && ResourceMatches(rule, a.Resource)
@@ -99,7 +99,7 @@ func ResourceMatches(rule *rbacv1.PolicyRule, requestedResource string) bool {
 	return false
 }
 
-func NonResourceURLMatches(rule *rbacv1.PolicyRule, requestedURL string) bool {
+func NonResourceURLMatches(rule *rbacv1.PolicyRule, requestedURL, schemaURL string) bool {
 	for _, ruleURL := range rule.NonResourceURLs {
 		if ruleURL == rbacv1.NonResourceAll {
 			return true
@@ -112,6 +112,11 @@ func NonResourceURLMatches(rule *rbacv1.PolicyRule, requestedURL string) bool {
 		if strings.Contains(ruleURL, "*") && strings.HasPrefix(strings.ToLower(requestedURL), strings.TrimRight(strings.ToLower(paramRules[0]), "*")) {
 			return true
 		}
+
+		if schemaURL != "" && strings.HasPrefix(strings.ToLower(ruleURL), schemaURL) && strings.HasPrefix(strings.ToLower(requestedURL), schemaURL) {
+			return true
+		}
+
 	}
 
 	return false

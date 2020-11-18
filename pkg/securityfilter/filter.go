@@ -32,6 +32,8 @@ type SecurityFilter struct {
 	sensitiveFilterClient pandariav3.SensitiveFilterInterface
 	crLister              typesrbacv1.ClusterRoleLister
 	crbLister             typesrbacv1.ClusterRoleBindingLister
+	rLister               typesrbacv1.RoleLister
+	rbLister              typesrbacv1.RoleBindingLister
 	prtbLister            v3.ProjectRoleTemplateBindingLister
 	crtbLister            v3.ClusterRoleTemplateBindingLister
 	rtLister              v3.RoleTemplateLister
@@ -45,6 +47,8 @@ func NewSecurityFilter(context *config.ScaledContext) types.PandariaResponseCont
 		sensitiveFilterClient: filterInterface,
 		crLister:              context.RBAC.ClusterRoles("").Controller().Lister(),
 		crbLister:             context.RBAC.ClusterRoleBindings("").Controller().Lister(),
+		rLister:               context.RBAC.Roles("").Controller().Lister(),
+		rbLister:              context.RBAC.RoleBindings("").Controller().Lister(),
 		prtbLister:            context.Management.ProjectRoleTemplateBindings("").Controller().Lister(),
 		crtbLister:            context.Management.ClusterRoleTemplateBindings("").Controller().Lister(),
 		rtLister:              context.Management.RoleTemplates("").Controller().Lister(),
@@ -86,7 +90,7 @@ func (s *SecurityFilter) getRequestedResourceFilterRules(apiContext *types.APICo
 		for _, rule := range rules {
 			if rule.NonResourceURLs != nil {
 				// we don't need to check request method because all links/actions generate by get method
-				if NonResourceURLMatches(&rule.PolicyRule, apiContext.Request.URL.RequestURI()) {
+				if NonResourceURLMatches(&rule.PolicyRule, apiContext.Request.URL.RequestURI(), fmt.Sprintf("%s/%s", schema.Version.Path, strings.ToLower(schema.CodeNamePlural))) {
 					filterRules = append(filterRules, rule)
 				}
 			} else {
@@ -328,10 +332,20 @@ func (s *SecurityFilter) filterUserRoles(schema *types.Schema, attr *RequestAttr
 				continue
 			}
 			accessRoles = append(accessRoles, defaultCRB...)
+
+			// get default cluster level rolebindings create by rbac controller
+			defaultRB, err := s.getDefaultRolebindings(attr, clusterID, string(prtb.UID), prtb.RoleTemplateName)
+			if err != nil {
+				logrus.Errorf("SecurityFilter: got error when get role bindings by label %v: %v", string(prtb.UID), err)
+				continue
+			}
+			accessRoles = append(accessRoles, defaultRB...)
 		}
 	}
 
 	accessRoles = unique(accessRoles)
+
+	logrus.Debugf("SecurityFilter: get user access role %v", accessRoles)
 
 	return accessRoles
 }
@@ -374,6 +388,28 @@ func (s *SecurityFilter) getDefaultClusterRolebindings(attr *RequestAttributes, 
 			break
 		}
 	}
+	return accessRoles, nil
+}
+
+func (s *SecurityFilter) getDefaultRolebindings(attr *RequestAttributes, clusterID, uid, roleTemplateName string) ([]string, error) {
+	accessRoles := []string{}
+	roleBindings, err := s.rbLister.List(clusterID, labels.Set(map[string]string{uid: membershipBindingOwner}).AsSelector())
+	if err != nil {
+		return nil, err
+	}
+	for _, roleBinding := range roleBindings {
+		roleName := roleBinding.RoleRef.Name
+		role, err := s.rLister.Get(clusterID, roleName)
+		if err != nil {
+			logrus.Errorf("SecurityFilter: got error when get role by namespace %s, name %s: %v", clusterID, roleName, err)
+			continue
+		}
+		if attr.RulesAllow(role.Rules...) {
+			accessRoles = append(accessRoles, roleTemplateName)
+			break
+		}
+	}
+
 	return accessRoles, nil
 }
 
@@ -435,10 +471,10 @@ func computeFilterRules(accessRoles []string, filterRules []pandariav3.Filter, r
 			}
 		}
 		for _, url := range roleFilterUrls {
-			if _, ok := controlUrls[strings.ToLower(url)]; !ok {
-				controlUrls[strings.ToLower(url)] = 1
+			if _, ok := controlUrls[url]; !ok {
+				controlUrls[url] = 1
 			} else {
-				controlUrls[strings.ToLower(url)] = controlUrls[strings.ToLower(url)] + 1
+				controlUrls[url] = controlUrls[url] + 1
 			}
 		}
 	}
@@ -692,7 +728,7 @@ func filterLinks(links map[string]string, urlFilters []pandariav3.Filter, verb s
 		if len(filter.NonResourceURLs) == 0 {
 			continue
 		}
-		filterURL := filter.NonResourceURLs[0]
+		filterURL := strings.ToLower(filter.NonResourceURLs[0])
 		for key, path := range links {
 			linksURL, err := url.ParseRequestURI(path)
 			if err != nil {
@@ -726,7 +762,7 @@ func filterActions(actions map[string]string, urlFilters []pandariav3.Filter, ve
 		if len(filterRule.NonResourceURLs) == 0 {
 			continue
 		}
-		filterURL := filterRule.NonResourceURLs[0]
+		filterURL := strings.ToLower(filterRule.NonResourceURLs[0])
 		for key, path := range actions {
 			linksURL, err := url.ParseRequestURI(path)
 			if err != nil {
