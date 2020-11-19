@@ -28,9 +28,12 @@ var (
 		"fluentd.cluster.dockerRoot",
 		"fluentd.fluentd-linux.cluster.dockerRoot",
 		"fluentd.fluentd-windows.enabled",
+		"fluentd.fluentd-linux.cluster.fluentdlog",
 	}
 	windowNodeLabel = labels.Set(map[string]string{"beta.kubernetes.io/os": "windows"}).AsSelector()
 )
+
+const defaultFluentdLogDir = "/var/lib/rancher/fluentd/log"
 
 type Deployer struct {
 	clusterName          string
@@ -138,6 +141,11 @@ func (d *Deployer) deployRancherLogging(systemProjectID, appCreator string) erro
 		dockerRootDir = settings.InitialDockerRootDir.Get()
 	}
 
+	fluentdLogDir := cluster.Spec.FluentdLogDir
+	if fluentdLogDir == "" {
+		fluentdLogDir = defaultFluentdLogDir
+	}
+
 	driverDir := getDriverDir(cluster.Status.Driver)
 
 	templateVersionID := loggingconfig.RancherLoggingTemplateID()
@@ -151,7 +159,7 @@ func (d *Deployer) deployRancherLogging(systemProjectID, appCreator string) erro
 		return err
 	}
 
-	app := rancherLoggingApp(appCreator, systemProjectID, templateVersion.ExternalID, driverDir, dockerRootDir)
+	app := rancherLoggingApp(appCreator, systemProjectID, templateVersion.ExternalID, driverDir, dockerRootDir, fluentdLogDir)
 
 	windowsNodes, err := d.nodeLister.List(metav1.NamespaceAll, windowNodeLabel)
 	if err != nil {

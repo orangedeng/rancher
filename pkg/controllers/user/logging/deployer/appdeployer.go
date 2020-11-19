@@ -141,7 +141,7 @@ func (d *AppDeployer) isDeploySuccess(targetNamespace string, selector map[strin
 	}
 }
 
-func rancherLoggingApp(appCreator, systemProjectID, catalogID, driverDir, dockerRoot string) *projectv3.App {
+func rancherLoggingApp(appCreator, systemProjectID, catalogID, driverDir, dockerRoot, fluentdLogDir string) *projectv3.App {
 	appName := loggingconfig.AppName
 	namepspace := loggingconfig.LoggingNamespace
 	_, systemProjectName := ref.Parse(systemProjectID)
@@ -165,6 +165,7 @@ func rancherLoggingApp(appCreator, systemProjectID, catalogID, driverDir, docker
 				//new version
 				"fluentd.fluentd-linux.enabled":                     "true",
 				"fluentd.fluentd-linux.cluster.dockerRoot":          dockerRoot,
+				"fluentd.fluentd-linux.cluster.fluentdlog":          fluentdLogDir,
 				"log-aggregator.log-aggregator-linux.enabled":       "true",
 				"log-aggregator.log-aggregator-linux.flexVolumeDir": driverDir,
 			},
