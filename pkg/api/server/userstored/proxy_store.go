@@ -11,7 +11,7 @@ import (
 	"github.com/rancher/types/config"
 )
 
-type storeWrapperFunc func(types.Store) types.Store
+type storeWrapperFunc func(types.Store, *config.ScaledContext) types.Store
 
 func addProxyStore(ctx context.Context, schemas *types.Schemas, context *config.ScaledContext, schemaType, apiVersion string, storeWrapper storeWrapperFunc) *types.Schema {
 	s := schemas.Schema(&schema.Version, schemaType)
@@ -46,7 +46,7 @@ func addProxyStore(ctx context.Context, schemas *types.Schemas, context *config.
 		plural)
 
 	if storeWrapper != nil {
-		s.Store = storeWrapper(s.Store)
+		s.Store = storeWrapper(s.Store, context)
 	}
 
 	return s

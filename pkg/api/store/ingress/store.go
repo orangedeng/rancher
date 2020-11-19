@@ -16,6 +16,8 @@ import (
 	"github.com/rancher/rancher/pkg/api/store/workload"
 	"github.com/rancher/rancher/pkg/controllers/user/ingress"
 	"github.com/rancher/rancher/pkg/ref"
+	"github.com/rancher/types/config"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,7 +25,7 @@ const (
 	ingressStateAnnotation = "field.cattle.io/ingressState"
 )
 
-func Wrap(store types.Store) types.Store {
+func Wrap(store types.Store, context *config.ScaledContext) types.Store {
 	modify := &Store{
 		store,
 	}

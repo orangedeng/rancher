@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/norman/controller"
 	loggingconfig "github.com/rancher/rancher/pkg/controllers/user/logging/config"
 	"github.com/rancher/rancher/pkg/controllers/user/logging/generator"
+	workloadUtil "github.com/rancher/rancher/pkg/controllers/user/workload"
 	"github.com/rancher/rancher/pkg/project"
 	v1 "github.com/rancher/types/apis/core/v1"
 	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -16,11 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-func NewConfigGenerator(clusterName string, projectLoggingLister mgmtv3.ProjectLoggingLister, namespaceLister v1.NamespaceLister) *ConfigGenerator {
+func NewConfigGenerator(clusterName string, projectLoggingLister mgmtv3.ProjectLoggingLister, namespaceLister v1.NamespaceLister, podLister v1.PodLister, workloadController workloadUtil.CommonController) *ConfigGenerator {
 	return &ConfigGenerator{
 		clusterName:          clusterName,
 		projectLoggingLister: projectLoggingLister,
 		namespaceLister:      namespaceLister,
+		workloadController:   workloadController,
+		podLister:            podLister,
 	}
 }
 
@@ -28,6 +31,8 @@ type ConfigGenerator struct {
 	clusterName          string
 	projectLoggingLister mgmtv3.ProjectLoggingLister
 	namespaceLister      v1.NamespaceLister
+	workloadController   workloadUtil.CommonController
+	podLister            v1.PodLister
 }
 
 func (s *ConfigGenerator) GenerateClusterLoggingConfig(clusterLogging *mgmtv3.ClusterLogging, systemProjectID, certDir string) ([]byte, error) {
@@ -43,7 +48,7 @@ func (s *ConfigGenerator) GenerateClusterLoggingConfig(clusterLogging *mgmtv3.Cl
 		}
 	}
 
-	buf, err := generator.GenerateClusterConfig(clusterLogging.Spec, excludeNamespaces, certDir)
+	buf, err := generator.GenerateClusterConfig(clusterLogging.Spec, excludeNamespaces, certDir, &s.workloadController, s.podLister)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +83,7 @@ func (s *ConfigGenerator) GenerateProjectLoggingConfig(projectLoggings []*mgmtv3
 		return nil, errors.Wrap(err, "list namespace failed")
 	}
 
-	buf, err := generator.GenerateProjectConfig(projectLoggings, namespaces, systemProjectID, certDir)
+	buf, err := generator.GenerateProjectConfig(projectLoggings, namespaces, systemProjectID, certDir, &s.workloadController, s.podLister)
 	if err != nil {
 		return nil, err
 	}

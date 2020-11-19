@@ -14,12 +14,13 @@ import (
 	mgmtschema "github.com/rancher/types/apis/management.cattle.io/v3/schema"
 	clusterclient "github.com/rancher/types/client/cluster/v3"
 	mgmtclient "github.com/rancher/types/client/management/v3"
+	"github.com/rancher/types/config"
 )
 
 const quotaField = "resourceQuota"
 const containerRecsourceLimitField = "containerDefaultResourceLimit"
 
-func New(store types.Store) types.Store {
+func New(store types.Store, context *config.ScaledContext) types.Store {
 	t := &transform.Store{
 		Store: store,
 		Transformer: func(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}, opt *types.QueryOptions) (map[string]interface{}, error) {

@@ -9,11 +9,13 @@ import (
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
 	v3 "github.com/rancher/types/client/project/v3"
+	"github.com/rancher/types/config"
+
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func New(store types.Store) types.Store {
+func New(store types.Store, context *config.ScaledContext) types.Store {
 	return &Store{
 		store,
 	}

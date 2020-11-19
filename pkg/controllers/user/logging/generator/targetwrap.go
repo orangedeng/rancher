@@ -34,6 +34,7 @@ type ClusterLoggingTemplateWrap struct {
 	ContainerLogSourceTag   string
 	CustomLogSourceTag      string
 	ContainerLogPosFilename string
+	ExcludePath             string
 	RkeLogTag               string
 	RkeLogPosFilename       string
 }
@@ -49,11 +50,12 @@ type ProjectLoggingTemplateWrap struct {
 	ContainerLogSourceTag   string
 	CustomLogSourceTag      string
 	ContainerLogPosFilename string
+	ExcludePath             string
 	RkeLogTag               string
 	RkeLogPosFilename       string
 }
 
-func newWrapClusterLogging(logging v3.ClusterLoggingSpec, excludeNamespace, certDir string) (*ClusterLoggingTemplateWrap, error) {
+func newWrapClusterLogging(logging v3.ClusterLoggingSpec, excludeNamespace, certDir string, paths []string) (*ClusterLoggingTemplateWrap, error) {
 	wrap, err := NewLoggingTargetTemplateWrap(logging.LoggingTargets)
 	if err != nil {
 		return nil, errors.Wrapf(err, "wrapper logging target failed")
@@ -73,6 +75,7 @@ func newWrapClusterLogging(logging v3.ClusterLoggingSpec, excludeNamespace, cert
 	bufferFile := getBufferFilename(level, "")
 	customLogSourceTag := getCustomLogSourceTag(level, "")
 	containerLogPosFilename := getContainerLogPosFilename(level, "")
+	excludePath := strings.Join(paths, ", ")
 	return &ClusterLoggingTemplateWrap{
 		ExcludeNamespace:          excludeNamespace,
 		LoggingCommonField:        logging.LoggingCommonField,
@@ -83,12 +86,13 @@ func newWrapClusterLogging(logging v3.ClusterLoggingSpec, excludeNamespace, cert
 		ContainerLogSourceTag:     level,
 		CustomLogSourceTag:        customLogSourceTag,
 		ContainerLogPosFilename:   containerLogPosFilename,
+		ExcludePath:               excludePath,
 		RkeLogTag:                 "rke",
 		RkeLogPosFilename:         "fluentd-rke-logging.pos",
 	}, nil
 }
 
-func newWrapProjectLogging(logging v3.ProjectLoggingSpec, containerSourcePath, certDir string, isSystemProject bool) (*ProjectLoggingTemplateWrap, error) {
+func newWrapProjectLogging(logging v3.ProjectLoggingSpec, containerSourcePath, certDir string, isSystemProject bool, paths []string) (*ProjectLoggingTemplateWrap, error) {
 	wrap, err := NewLoggingTargetTemplateWrap(logging.LoggingTargets)
 	if err != nil {
 		return nil, errors.Wrapf(err, "wrapper logging target failed")
@@ -104,7 +108,7 @@ func newWrapProjectLogging(logging v3.ProjectLoggingSpec, containerSourcePath, c
 	bufferFile := getBufferFilename(level, wrapProjectName)
 	customLogSourceTag := getCustomLogSourceTag(level, logging.ProjectName)
 	containerLogPosFilename := getContainerLogPosFilename(level, logging.ProjectName)
-
+	excludePath := strings.Join(paths, ", ")
 	return &ProjectLoggingTemplateWrap{
 		ContainerSourcePath:       containerSourcePath,
 		LoggingCommonField:        logging.LoggingCommonField,
@@ -115,6 +119,7 @@ func newWrapProjectLogging(logging v3.ProjectLoggingSpec, containerSourcePath, c
 		ContainerLogSourceTag:     logging.ProjectName,
 		CustomLogSourceTag:        customLogSourceTag,
 		ContainerLogPosFilename:   containerLogPosFilename,
+		ExcludePath:               excludePath,
 		RkeLogTag:                 "rke-system-project",
 		RkeLogPosFilename:         "fluentd-rke-logging-system-project.pos",
 	}, nil

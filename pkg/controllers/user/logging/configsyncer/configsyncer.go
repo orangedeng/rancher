@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/norman/controller"
 	loggingconfig "github.com/rancher/rancher/pkg/controllers/user/logging/config"
 	"github.com/rancher/rancher/pkg/controllers/user/logging/passwordgetter"
+	workloadUtil "github.com/rancher/rancher/pkg/controllers/user/workload"
 	"github.com/rancher/rancher/pkg/project"
 	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	projectv3 "github.com/rancher/types/apis/project.cattle.io/v3"
@@ -29,14 +30,15 @@ const (
 // and updating the config secret
 // so the config reload could detect the file change and reload
 
-func NewConfigSyncer(cluster *config.UserContext, SecretManager *SecretManager) *ConfigSyncer {
+func NewConfigSyncer(cluster *config.UserContext, SecretManager *SecretManager, workloadController workloadUtil.CommonController) *ConfigSyncer {
 	clusterName := cluster.ClusterName
 	clusterLoggingLister := cluster.Management.Management.ClusterLoggings(clusterName).Controller().Lister()
 	projectLoggingLister := cluster.Management.Management.ProjectLoggings(metav1.NamespaceAll).Controller().Lister()
 	namespaceLister := cluster.Core.Namespaces(metav1.NamespaceAll).Controller().Lister()
 	secrets := cluster.Management.Core.Secrets(metav1.NamespaceAll)
+	podLister := cluster.Core.Pods(metav1.NamespaceAll).Controller().Lister()
 
-	configGenerator := NewConfigGenerator(clusterName, projectLoggingLister, namespaceLister)
+	configGenerator := NewConfigGenerator(clusterName, projectLoggingLister, namespaceLister, podLister, workloadController)
 	passwordGetter := passwordgetter.NewPasswordGetter(secrets)
 
 	return &ConfigSyncer{

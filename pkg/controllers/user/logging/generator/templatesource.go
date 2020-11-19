@@ -16,6 +16,9 @@ var SourceTemplate = `
 <source>
   @type  tail
   path  /var/log/containers/*.log
+  {{- if .ExcludePath }}
+  exclude_path [{{ .ExcludePath }}]
+  {{end}}
   pos_file  /fluentd/log/{{ .ContainerLogPosFilename}}
 {{- if .EnableExceptionStackMatch}}
   tag  exceptions.{{ .ContainerLogSourceTag }}.*
@@ -44,6 +47,9 @@ var SourceTemplate = `
 <source>
   @type  tail
   path  {{ .ContainerSourcePath}}
+  {{- if .ExcludePath }}
+  exclude_path [{{ .ExcludePath }}]
+  {{end}}
   pos_file  /fluentd/log/{{ .ContainerLogPosFilename}}
   time_format  %Y-%m-%dT%H:%M:%S
 {{- if .EnableExceptionStackMatch}}

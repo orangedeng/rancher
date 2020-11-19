@@ -17,6 +17,7 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/logging/configsyncer"
 	"github.com/rancher/rancher/pkg/controllers/user/logging/deployer"
 	"github.com/rancher/rancher/pkg/controllers/user/logging/utils"
+	workloadUtil "github.com/rancher/rancher/pkg/controllers/user/workload"
 	"github.com/rancher/rancher/pkg/rbac"
 	"github.com/rancher/rancher/pkg/ref"
 	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -175,11 +176,11 @@ func (h *Handler) dryRunLoggingTarget(apiContext *types.APIContext, level, clust
 	if err != nil {
 		return err
 	}
-
+	workloadController := workloadUtil.NewWorkloadController(apiContext.Request.Context(), context.UserOnlyContext(), nil)
 	podLister := context.Core.Pods(metav1.NamespaceAll).Controller().Lister()
 	namespaces := context.Core.Namespaces(metav1.NamespaceAll)
 	testerDeployer := deployer.NewTesterDeployer(context.Management, h.appsGetter, h.appLister, h.projectLister, podLister, h.projectLoggingLister, namespaces, h.templateLister)
-	configGenerator := configsyncer.NewConfigGenerator(metav1.NamespaceAll, h.projectLoggingLister, namespaces.Controller().Lister())
+	configGenerator := configsyncer.NewConfigGenerator(metav1.NamespaceAll, h.projectLoggingLister, namespaces.Controller().Lister(), podLister, workloadController)
 
 	var dryRunConfigBuf []byte
 	var certificate, clientCert, clientKey, certificatePath, clientCertPath, clientKeyPath, certScretKeyName string

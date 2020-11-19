@@ -15,13 +15,21 @@ import (
 	"github.com/rancher/norman/types/values"
 	"github.com/rancher/rancher/pkg/api/customization/workload"
 	"github.com/rancher/rancher/pkg/clustermanager"
+	"github.com/rancher/rancher/pkg/controllers/user/logging/generator"
+	workloadUtil "github.com/rancher/rancher/pkg/controllers/user/workload"
+	v1 "github.com/rancher/types/apis/core/v1"
+	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	managementschema "github.com/rancher/types/apis/management.cattle.io/v3/schema"
 	"github.com/rancher/types/apis/project.cattle.io/v3/schema"
 	projectschema "github.com/rancher/types/apis/project.cattle.io/v3/schema"
 	managementv3 "github.com/rancher/types/client/management/v3"
 	projectclient "github.com/rancher/types/client/project/v3"
+	"github.com/rancher/types/config"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func NewWorkloadAggregateStore(schemas *types.Schemas, manager *clustermanager.Manager) {
@@ -50,14 +58,24 @@ func NewWorkloadAggregateStore(schemas *types.Schemas, manager *clustermanager.M
 	workloadSchema.LinkHandler = workload.Handler{}.LinkHandler
 }
 
-func NewCustomizeStore(store types.Store) types.Store {
+func NewCustomizeStore(store types.Store, context *config.ScaledContext) types.Store {
 	return &CustomizeStore{
-		Store: NewTransformStore(store),
+		Store:                NewTransformStore(store),
+		clusterLoggingLister: context.Management.ClusterLoggings("").Controller().Lister(),
+		projectLoggingLister: context.Management.ProjectLoggings(metav1.NamespaceAll).Controller().Lister(),
+		clusterLogging:       context.Management.ClusterLoggings(""),
+		projectLogging:       context.Management.ProjectLoggings(metav1.NamespaceAll),
+		nsLister:             context.Core.Namespaces("").Controller().Lister(),
 	}
 }
 
 type CustomizeStore struct {
 	types.Store
+	clusterLoggingLister mgmtv3.ClusterLoggingLister
+	projectLoggingLister mgmtv3.ProjectLoggingLister
+	clusterLogging       mgmtv3.ClusterLoggingInterface
+	projectLogging       mgmtv3.ProjectLoggingInterface
+	nsLister             v1.NamespaceLister
 }
 
 func (s *CustomizeStore) Create(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}) (map[string]interface{}, error) {
@@ -93,6 +111,65 @@ func (s *CustomizeStore) Update(apiContext *types.APIContext, schema *types.Sche
 		return nil, err
 	}
 	return s.Store.Update(apiContext, schema, data, id)
+}
+
+func (s *CustomizeStore) Delete(apiContext *types.APIContext, schema *types.Schema, id string) (map[string]interface{}, error) {
+	if strings.EqualFold(schema.ID, workloadUtil.ReplicationControllerType) || strings.EqualFold(schema.ID, workloadUtil.ReplicaSetType) {
+		return s.Store.Delete(apiContext, schema, id)
+	}
+
+	var workload projectclient.Workload
+	accessError := access.ByID(apiContext, &projectschema.Version, "workload", apiContext.ID, &workload)
+	if accessError != nil {
+		return nil, httperror.NewAPIError(httperror.InvalidReference, "Error accessing workload")
+	}
+
+	if _, ok := workload.Annotations[generator.LoggingExcludeAnnotation]; !ok {
+		return s.Store.Delete(apiContext, schema, id)
+	}
+
+	if err := s.loggingEnqueue(workload.ProjectID); err != nil {
+		return nil, err
+	}
+
+	return s.Store.Delete(apiContext, schema, id)
+}
+
+func (s *CustomizeStore) loggingEnqueue(workloadProjectID string) error {
+	splitID := strings.Split(workloadProjectID, ":")
+	if len(splitID) != 2 {
+		return nil
+	}
+
+	clusterID := splitID[0]
+	projectID := splitID[1]
+
+	clusterLoggings, err := s.clusterLoggingLister.List(clusterID, labels.NewSelector())
+	if err != nil {
+		return err
+	}
+
+	if len(clusterLoggings) > 0 {
+		s.clusterLogging.Controller().Enqueue(clusterID, clusterLoggings[0].Name)
+	}
+
+	projectLoggings, err := s.projectLoggingLister.List(projectID, labels.NewSelector())
+	if err != nil {
+		return err
+	}
+
+	var projectLogging *mgmtv3.ProjectLogging
+	for _, pl := range projectLoggings {
+		if pl.Namespace == projectID {
+			projectLogging = pl
+		}
+	}
+
+	if projectLogging != nil {
+		s.projectLogging.Controller().Enqueue(projectID, projectLogging.Name)
+	}
+
+	return nil
 }
 
 func (s *CustomizeStore) validateStatefulSetVolume(schema *types.Schema, data map[string]interface{}) error {
