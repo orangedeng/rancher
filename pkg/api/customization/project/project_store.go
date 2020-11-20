@@ -266,12 +266,46 @@ func (s *projectStore) isQuotaFit(apiContext *types.APIContext, nsQuotaLimit *v3
 	for key, value := range defaultQuotaLimitMap {
 		if _, ok := usedQuotaLimitMap[key]; !ok {
 			limitToAdd[key] = value
+		} else {
+			if key == resourcequota.StorageClassPVCQuotaKey ||
+				key == resourcequota.StorageClassStorageQuotaKey {
+				defaultSCQuotaMap, err := convert.EncodeToMap(value)
+				if err != nil {
+					return err
+				}
+				usedSCQuotaMap, err := convert.EncodeToMap(usedQuotaLimitMap[key])
+				if err != nil {
+					return err
+				}
+				for k := range defaultSCQuotaMap {
+					if _, ok := usedSCQuotaMap[k]; !ok {
+						limitToAdd[key] = value
+					}
+				}
+			}
 		}
 	}
 
 	for key, value := range usedQuotaLimitMap {
 		if _, ok := defaultQuotaLimitMap[key]; !ok {
 			limitToRemove[key] = value
+		} else {
+			if key == resourcequota.StorageClassPVCQuotaKey ||
+				key == resourcequota.StorageClassStorageQuotaKey {
+				defaultSCQuotaMap, err := convert.EncodeToMap(defaultQuotaLimitMap[key])
+				if err != nil {
+					return err
+				}
+				usedSCQuotaMap, err := convert.EncodeToMap(value)
+				if err != nil {
+					return err
+				}
+				for k := range usedSCQuotaMap {
+					if _, ok := defaultSCQuotaMap[k]; !ok {
+						limitToRemove[key] = value
+					}
+				}
+			}
 		}
 	}
 
