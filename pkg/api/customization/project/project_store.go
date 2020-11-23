@@ -277,10 +277,14 @@ func (s *projectStore) isQuotaFit(apiContext *types.APIContext, nsQuotaLimit *v3
 				if err != nil {
 					return err
 				}
-				for k := range defaultSCQuotaMap {
+				limitToAddSC := map[string]interface{}{}
+				for k, v := range defaultSCQuotaMap {
 					if _, ok := usedSCQuotaMap[k]; !ok {
-						limitToAdd[key] = value
+						limitToAddSC[k] = v
 					}
+				}
+				if len(limitToAddSC) > 0 {
+					limitToAdd[key] = limitToAddSC
 				}
 			}
 		}
@@ -300,10 +304,14 @@ func (s *projectStore) isQuotaFit(apiContext *types.APIContext, nsQuotaLimit *v3
 				if err != nil {
 					return err
 				}
-				for k := range usedSCQuotaMap {
+				limitToRemoveSC := map[string]interface{}{}
+				for k, v := range usedSCQuotaMap {
 					if _, ok := defaultSCQuotaMap[k]; !ok {
-						limitToRemove[key] = value
+						limitToRemoveSC[k] = v
 					}
+				}
+				if len(limitToRemoveSC) > 0 {
+					limitToRemove[key] = limitToRemoveSC
 				}
 			}
 		}
