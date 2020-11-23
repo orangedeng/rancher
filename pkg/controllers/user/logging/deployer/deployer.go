@@ -29,6 +29,7 @@ var (
 		"fluentd.fluentd-linux.cluster.dockerRoot",
 		"fluentd.fluentd-windows.enabled",
 		"fluentd.fluentd-linux.cluster.fluentdlog",
+		"log-aggregator.log-aggregator-linux.flexVolumeDir",
 	}
 	windowNodeLabel = labels.Set(map[string]string{"beta.kubernetes.io/os": "windows"}).AsSelector()
 )
