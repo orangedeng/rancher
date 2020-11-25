@@ -1,25 +1,36 @@
 package pod
 
 import (
-	"encoding/base64"
 	"fmt"
-	"net/http"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
-	"github.com/rancher/rancher/pkg/kubectl"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/rancher/norman/api/access"
 	"github.com/rancher/norman/api/handler"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
+	"github.com/rancher/rancher/pkg/auth/util"
 	"github.com/rancher/rancher/pkg/clustermanager"
 	"github.com/rancher/types/apis/project.cattle.io/v3/schema"
 	projectschema "github.com/rancher/types/apis/project.cattle.io/v3/schema"
 	projectclient "github.com/rancher/types/client/project/v3"
 	"github.com/rancher/types/config"
 	"github.com/rancher/types/user"
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+)
+
+const (
+	tmpDir = "./management-state/tmp"
 )
 
 type ActionWrapper struct {
@@ -95,7 +106,6 @@ func (a ActionWrapper) downloadPodFile(apiContext *types.APIContext, clusterCont
 		return httperror.NewAPIError(httperror.InvalidBodyContent,
 			fmt.Sprintf("Failed to parse body: %v", err))
 	}
-
 	cfg, err := a.getKubeConfig(apiContext, clusterContext)
 	if err != nil {
 		return httperror.NewAPIError(httperror.InvalidState,
@@ -105,16 +115,97 @@ func (a ActionWrapper) downloadPodFile(apiContext *types.APIContext, clusterCont
 		len(pod.Containers) > 0 {
 		podFileDownloadInput.ContainerName = pod.Containers[0].Name
 	}
-	b, err := kubectl.Copy(namespace, name, podFileDownloadInput.ContainerName, podFileDownloadInput.FilePath, cfg)
+	kubeConfigFile, err := writeKubeConfig(cfg)
+	defer cleanup(kubeConfigFile)
 	if err != nil {
-		return httperror.NewAPIError(httperror.ServerError,
-			fmt.Sprintf("Failed to copy %s/%s:%s - %v", namespace, name, podFileDownloadInput.FilePath, err))
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed to make kubeconfig file: %v", err))
+	}
+	// Use the `kubectl.copy` snippet to complete the file copy to a static directory.
+	_, podFileName := filepath.Split(podFileDownloadInput.FilePath)
+	localPath := fmt.Sprintf("%s/%s-%s", util.GetProtectedStaticDir(), podFileName, uuid.NewV4().String())
+	cmd := exec.Command("kubectl",
+		"--kubeconfig",
+		kubeConfigFile.Name(),
+		"cp",
+		namespace+"/"+name+":"+podFileDownloadInput.FilePath,
+		localPath)
+	if err := cmd.Start(); err != nil {
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed start to copy pod file: %v", err))
+	}
+	logrus.Infof("Copying pod files")
+	if err := cmd.Wait(); err != nil {
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed to copy pod file: %v", err))
+	}
+	// Determining the existence of the file
+	if !fileExists(localPath) {
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed to copy pod file: %v", "No such file or directory"))
+	}
+	logrus.Infof("Complete file copy")
+	podfile, err := os.Open(localPath)
+	defer cleanup(podfile)
+	if err != nil {
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed to get FileInfo structure describing: %v", err))
+	}
+	FileStat, err := podfile.Stat()
+	if err != nil {
+		return httperror.NewAPIError(httperror.InvalidState,
+			fmt.Sprintf("Failed to Statistical file size: %v", err))
+	}
+	FileSize := strconv.FormatInt(FileStat.Size(), 10)
+	apiContext.Response.Header().Set("Content-Disposition", "attachment; filename="+podFileName)
+	apiContext.Response.Header().Set("Content-Type", "application/octet-stream")
+	apiContext.Response.Header().Set("x-decompressed-content-length", FileSize)
+	apiContext.Response.Header().Set("Pandaria-Download-Attachment", podFileName)
+	podfile.Seek(0, 0)
+	io.Copy(apiContext.Response, podfile)
+	return nil
+}
+
+func writeKubeConfig(kubeConfig *clientcmdapi.Config) (*os.File, error) {
+	kubeConfigFile, err := tempFile("kubeconfig-")
+	if err != nil {
+		return nil, err
+	}
+	if err := clientcmd.WriteToFile(*kubeConfig, kubeConfigFile.Name()); err != nil {
+		return nil, err
+	}
+	return kubeConfigFile, nil
+}
+
+func tempFile(prefix string) (*os.File, error) {
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(tmpDir, 0755); err != nil {
+			return nil, err
+		}
 	}
 
-	data := map[string]interface{}{
-		"type": "podFileDownloadOutput",
-		projectclient.PodFileDownloadOutputFieldFileContent: base64.StdEncoding.EncodeToString(b),
+	f, err := ioutil.TempFile(tmpDir, prefix)
+	if err != nil {
+		return nil, err
 	}
-	apiContext.WriteResponse(http.StatusOK, data)
-	return nil
+
+	return f, f.Close()
+}
+
+func cleanup(files ...*os.File) {
+	for _, file := range files {
+		if file == nil {
+			continue
+		}
+		os.Remove(file.Name())
+	}
+}
+
+func fileExists(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

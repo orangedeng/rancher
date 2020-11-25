@@ -203,4 +203,6 @@ RUN mkdir -p ${NETWORK_ADDONS_DIR} && \
     curl -sLf ${CANAL_MACVLAN_NETWORK_ADDON_URL} > ${NETWORK_ADDONS_DIR}/${CANAL_MACVLAN_NETWORK_ADDON_NAME}.yaml	
 VOLUME /var/lib/pandaria
 
+RUN mkdir -p /usr/share/rancher/protected-files/
+
 ENTRYPOINT ["entrypoint.sh"]

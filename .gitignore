@@ -21,6 +21,7 @@ tests/integration/.idea/
 *.pyc
 __pycache__
 /management-state
+/protected-files
 /rancher
 *.pytest_cache
 .kube/

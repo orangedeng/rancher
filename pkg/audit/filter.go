@@ -62,7 +62,12 @@ func (aw *wrapWriter) WriteHeader(statusCode int) {
 }
 
 func (aw *wrapWriter) Write(body []byte) (int, error) {
-	aw.buf.Write(body)
+	if aw.Header().Get("Pandaria-Download-Attachment") != "" {
+		aw.buf.Write([]byte(aw.Header().Get("Pandaria-Download-Attachment")))
+	} else {
+		aw.buf.Write(body)
+	}
+
 	return aw.ResponseWriter.Write(body)
 }
 
