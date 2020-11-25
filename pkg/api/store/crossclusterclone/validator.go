@@ -263,9 +263,14 @@ func getNamespacedLimitQuota(namespace *clusterclient.Namespace) (*mgmntv3.Resou
 func getNamespacedUsedQuota(namespace *clusterclient.Namespace) (api.ResourceList, error) {
 	nsUsedQuota := api.ResourceList{}
 	if quotaUsage, ok := namespace.Annotations["field.cattle.io/resourceQuotaUsage"]; ok {
-		err := json.Unmarshal([]byte(quotaUsage), &nsUsedQuota)
+		nsLimit := &mgmntv3.ResourceQuotaLimit{}
+		err := json.Unmarshal([]byte(quotaUsage), nsLimit)
 		if err != nil {
-			logrus.Errorf("can't convert [%v] resource quota usage value %v to ResourceList", namespace.Name, quotaUsage)
+			logrus.Errorf("can't convert [%v] resource quota usage value %v to ResourceQuotaLimit", namespace.Name, quotaUsage)
+			return nil, err
+		}
+		nsUsedQuota, err = resourcequota.ConvertLimitToResourceList(nsLimit)
+		if err != nil {
 			return nil, err
 		}
 	}
