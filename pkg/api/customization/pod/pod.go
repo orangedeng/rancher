@@ -128,32 +128,34 @@ func (a ActionWrapper) downloadPodFile(apiContext *types.APIContext, clusterCont
 		"--kubeconfig",
 		kubeConfigFile.Name(),
 		"cp",
+		"-c",
+		podFileDownloadInput.ContainerName,
 		namespace+"/"+name+":"+podFileDownloadInput.FilePath,
 		localPath)
 	if err := cmd.Start(); err != nil {
-		return httperror.NewAPIError(httperror.InvalidState,
+		return httperror.NewAPIError(httperror.ServerError,
 			fmt.Sprintf("Failed start to copy pod file: %v", err))
 	}
 	logrus.Infof("Copying pod files")
 	if err := cmd.Wait(); err != nil {
-		return httperror.NewAPIError(httperror.InvalidState,
+		return httperror.NewAPIError(httperror.ServerError,
 			fmt.Sprintf("Failed to copy pod file: %v", err))
 	}
 	// Determining the existence of the file
 	if !fileExists(localPath) {
-		return httperror.NewAPIError(httperror.InvalidState,
+		return httperror.NewAPIError(httperror.NotFound,
 			fmt.Sprintf("Failed to copy pod file: %v", "No such file or directory"))
 	}
 	logrus.Infof("Complete file copy")
 	podfile, err := os.Open(localPath)
 	defer cleanup(podfile)
 	if err != nil {
-		return httperror.NewAPIError(httperror.InvalidState,
+		return httperror.NewAPIError(httperror.ServerError,
 			fmt.Sprintf("Failed to get FileInfo structure describing: %v", err))
 	}
 	FileStat, err := podfile.Stat()
 	if err != nil {
-		return httperror.NewAPIError(httperror.InvalidState,
+		return httperror.NewAPIError(httperror.ServerError,
 			fmt.Sprintf("Failed to Statistical file size: %v", err))
 	}
 	FileSize := strconv.FormatInt(FileStat.Size(), 10)
