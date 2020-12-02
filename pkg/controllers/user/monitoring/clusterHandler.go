@@ -281,15 +281,12 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 
 		"exporter-coredns.apiGroup": monitoring.APIVersion.Group,
 
-		"exporter-kube-controller-manager.enabled":  "false",
 		"exporter-kube-controller-manager.apiGroup": monitoring.APIVersion.Group,
 
 		"exporter-kube-dns.apiGroup": monitoring.APIVersion.Group,
 
-		"exporter-kube-etcd.enabled":  "false",
 		"exporter-kube-etcd.apiGroup": monitoring.APIVersion.Group,
 
-		"exporter-kube-scheduler.enabled":  "false",
 		"exporter-kube-scheduler.apiGroup": monitoring.APIVersion.Group,
 
 		"exporter-kube-state.apiGroup": monitoring.APIVersion.Group,
