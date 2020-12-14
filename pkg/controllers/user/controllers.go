@@ -15,6 +15,8 @@ import (
 	"github.com/rancher/rancher/pkg/controllers/user/dnsrecord"
 	"github.com/rancher/rancher/pkg/controllers/user/endpoints"
 	"github.com/rancher/rancher/pkg/controllers/user/externalservice"
+	"github.com/rancher/rancher/pkg/controllers/user/f5cis"
+	"github.com/rancher/rancher/pkg/controllers/user/f5management"
 	"github.com/rancher/rancher/pkg/controllers/user/globaldns"
 	"github.com/rancher/rancher/pkg/controllers/user/gpu"
 	"github.com/rancher/rancher/pkg/controllers/user/healthsyncer"
@@ -81,6 +83,14 @@ func Register(ctx context.Context, cluster *config.UserContext, clusterRec *mana
 	nsserviceaccount.Register(ctx, cluster)
 
 	gpu.Register(ctx, cluster) // for pandaria gpu management
+	f5cis.Register(ctx, cluster)
+
+	err := f5management.CRDSetup(ctx, cluster.UserOnlyContext())
+	if err != nil {
+		return err
+	}
+	// f5management.Register(ctx, cluster)
+	globaldns.RegisterF5(ctx, cluster)
 
 	// register controller for API
 	cluster.APIAggregation.APIServices("").Controller()
@@ -138,6 +148,7 @@ func RegisterUserOnly(ctx context.Context, cluster *config.UserOnlyContext) erro
 	workload.Register(ctx, cluster)
 	servicemonitor.Register(ctx, cluster)
 	monitoring.RegisterAgent(ctx, cluster)
+	f5management.RegisterAgent(ctx, cluster)
 	return nil
 }
 

@@ -96,10 +96,21 @@ func (f *Formatter) Formatter(request *types.APIContext, resource *types.RawReso
 				}
 			}
 		}
+
+		if convert.ToBool(resource.Values["enableF5CIS"]) {
+			resource.AddAction(request, v3.ClusterActionDisableF5CIS)
+			resource.AddAction(request, v3.ClusterActionEditF5CIS)
+		} else {
+			resource.AddAction(request, v3.ClusterActionEnableF5CIS)
+		}
 	}
 
 	if convert.ToBool(resource.Values["enableClusterMonitoring"]) {
 		resource.AddAction(request, v3.ClusterActionViewMonitoring)
+	}
+
+	if convert.ToBool(resource.Values["enableF5CIS"]) {
+		resource.AddAction(request, v3.ClusterActionViewF5CIS)
 	}
 
 	if gkeConfig, ok := resource.Values["googleKubernetesEngineConfig"]; ok {

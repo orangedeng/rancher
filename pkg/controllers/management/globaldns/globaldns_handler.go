@@ -30,6 +30,9 @@ const (
 	annotationFilter       = "annotationFilter"
 	annotationDNSTTL       = "external-dns.alpha.kubernetes.io/ttl"
 	defaultIngressClass    = "rancher-external-dns"
+	//Pandaria
+	annotationF5VirtualServer = "external-dns.alpha.kubernetes.io/bigip-virtual-server"
+	f5VirtualServerAnnotation = "f5.cattle.io/virtualserver"
 )
 
 type GDController struct {
@@ -137,6 +140,12 @@ func (n *GDController) createIngressForGlobalDNS(globaldns *v3.GlobalDNS) (*v1be
 			ingressSpec.ObjectMeta.Annotations[annotationIngressClass] = ingressClass
 		}
 	}
+
+	virtualServerAnno, ok := globaldns.Annotations[f5VirtualServerAnnotation]
+	if ok {
+		ingressSpec.ObjectMeta.Annotations[annotationF5VirtualServer] = virtualServerAnno
+	}
+
 	ingressObj, err := n.ingresses.Create(context.TODO(), ingressSpec, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -188,7 +197,6 @@ func (n *GDController) generateNewIngressSpec(globaldns *v3.GlobalDNS) *v1beta1.
 		},
 	}
 }
-
 
 func (n *GDController) getIngressClass(globalDNSProviderName string) (string, error) {
 	providerName, err := n.getGlobalDNSProviderName(globalDNSProviderName)
@@ -268,6 +276,14 @@ func (n *GDController) updateIngressForDNS(ingress *v1beta1.Ingress, obj *v3.Glo
 		}
 		if !strings.EqualFold(ingress.ObjectMeta.Annotations[annotationIngressClass], ingressClass) {
 			ingress.ObjectMeta.Annotations[annotationIngressClass] = ingressClass
+			updateIngress = true
+		}
+	}
+
+	virtualServerAnno, ok := obj.Annotations[f5VirtualServerAnnotation]
+	if ok {
+		if ingress.ObjectMeta.Annotations[annotationF5VirtualServer] != virtualServerAnno {
+			ingress.ObjectMeta.Annotations[annotationF5VirtualServer] = virtualServerAnno
 			updateIngress = true
 		}
 	}

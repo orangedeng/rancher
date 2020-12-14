@@ -15,6 +15,8 @@ import (
 	"github.com/rancher/rancher/pkg/api/store/cert"
 	"github.com/rancher/rancher/pkg/api/store/crd"
 	"github.com/rancher/rancher/pkg/api/store/crossclusterclone"
+	"github.com/rancher/rancher/pkg/api/store/f5/transportserver"
+	"github.com/rancher/rancher/pkg/api/store/f5/virtualserver"
 	"github.com/rancher/rancher/pkg/api/store/harbor"
 	"github.com/rancher/rancher/pkg/api/store/hpa"
 	"github.com/rancher/rancher/pkg/api/store/ingress"
@@ -67,12 +69,17 @@ func Setup(ctx context.Context, mgmt *config.ScaledContext, clusterManager *clus
 	addProxyStore(ctx, schemas, mgmt, client.DestinationRuleType, "networking.istio.io/v1alpha3", nil)
 	addProxyStore(ctx, schemas, mgmt, client.GatewayType, "networking.istio.io/v1alpha3", nil)
 
+	addProxyStore(ctx, schemas, mgmt, client.VirtualServerType, "cis.f5.com/v1", virtualserver.Wrap)
+	addProxyStore(ctx, schemas, mgmt, client.TLSProfileType, "cis.f5.com/v1", nil)
+	addProxyStore(ctx, schemas, mgmt, client.TransportServerType, "cis.f5.com/v1", transportserver.Wrap)
+
 	Secret(ctx, mgmt, schemas)
 	Service(ctx, schemas, mgmt)
 	Workload(schemas, clusterManager)
 	Namespace(schemas, clusterManager)
 	HPA(schemas, clusterManager)
 	Istio(schemas)
+	F5(schemas)
 
 	SetProjectID(schemas, clusterManager, k8sProxy)
 	StorageClass(schemas)
@@ -169,6 +176,18 @@ func Secret(ctx context.Context, management *config.ScaledContext, schemas *type
 func Istio(schemas *types.Schemas) {
 	istioTypes := []string{client.VirtualServiceType, client.DestinationRuleType, client.GatewayType}
 	for _, t := range istioTypes {
+		schema := schemas.Schema(&schema.Version, t)
+		store := &crd.ForgetCRDNotFoundStore{
+			Store: schema.Store,
+		}
+		schema.Store = store
+	}
+
+}
+
+func F5(schemas *types.Schemas) {
+	f5Types := []string{client.VirtualServerType, client.TransportServerType, client.TLSProfileType}
+	for _, t := range f5Types {
 		schema := schemas.Schema(&schema.Version, t)
 		store := &crd.ForgetCRDNotFoundStore{
 			Store: schema.Store,
