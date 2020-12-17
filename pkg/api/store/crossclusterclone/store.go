@@ -34,7 +34,7 @@ type cloneStore struct {
 	WorkloadStore                   types.Store
 	ConfigMapStore                  types.Store
 	PersistentVolumeClaimStore      types.Store
-	IngressStore                    types.Store
+	ServiceStore                    types.Store
 	MSecretClient                   v1.SecretInterface
 	ClusterManager                  *clustermanager.Manager
 }
@@ -50,7 +50,7 @@ func NewCrossClusterCloneStore(schemas *types.Schemas, mgmt *config.ScaledContex
 	workloadSchema := schemas.Schema(&schema.Version, client.WorkloadType)
 	configMapSchema := schemas.Schema(&schema.Version, client.ConfigMapType)
 	pvcSchema := schemas.Schema(&schema.Version, client.PersistentVolumeClaimType)
-	ingressSchema := schemas.Schema(&schema.Version, client.IngressType)
+	serviceSchema := schemas.Schema(&schema.Version, client.ServiceType)
 	s := &cloneStore{
 		Store:                           schema.Store,
 		SecretStore:                     secretSchema.Store,
@@ -62,7 +62,7 @@ func NewCrossClusterCloneStore(schemas *types.Schemas, mgmt *config.ScaledContex
 		WorkloadStore:                   workloadSchema.Store,
 		ConfigMapStore:                  configMapSchema.Store,
 		PersistentVolumeClaimStore:      pvcSchema.Store,
-		IngressStore:                    ingressSchema.Store,
+		ServiceStore:                    serviceSchema.Store,
 		MSecretClient:                   mgmt.Core.Secrets(""),
 		ClusterManager:                  cluster,
 	}
@@ -79,7 +79,7 @@ func (c *cloneStore) Context() types.StorageContext {
 
 func (c *cloneStore) Create(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}) (map[string]interface{}, error) {
 	var err error
-	var secretResult, nsSecretResult, dockerCredResult, nsDockerCredResult, certificateResult, nsCertificateResult, configMapResult, pvcResult, workloadResult, ingressResult []interface{}
+	var secretResult, nsSecretResult, dockerCredResult, nsDockerCredResult, certificateResult, nsCertificateResult, configMapResult, pvcResult, workloadResult, serviceResult []interface{}
 	originContext := apiContext.SubContext["/v3/schemas/project"]
 
 	defer func() {
@@ -95,7 +95,7 @@ func (c *cloneStore) Create(apiContext *types.APIContext, schema *types.Schema, 
 				c.ConfigMapStore:                  configMapResult,
 				c.PersistentVolumeClaimStore:      pvcResult,
 				c.WorkloadStore:                   workloadResult,
-				c.IngressStore:                    ingressResult,
+				c.ServiceStore:                    serviceResult,
 			}
 			rollbackResource(apiContext, schema, rollbackResources)
 		}
@@ -220,21 +220,16 @@ func (c *cloneStore) Create(apiContext *types.APIContext, schema *types.Schema, 
 	}
 	workloadResult = append(workloadResult, w)
 
-	// create ingress
-	ingressList := convert.ToMapSlice(data["ingressList"])
-	// change ingress rules workloadId to new id
-	for _, ing := range ingressList {
-		rules := convert.ToMapSlice(ing["rules"])
-		for _, rule := range rules {
-			paths := convert.ToMapSlice(rule["paths"])
-			for _, p := range paths {
-				if _, ok := p["workloadIds"]; ok {
-					p["workloadIds"] = []string{w.ID}
-				}
-			}
+	// create custom service
+	serviceList := convert.ToMapSlice(data["serviceList"])
+	for _, svc := range serviceList {
+		targetWorkloadIDs := convert.ToStringSlice(svc["targetWorkloadIds"])
+		if len(targetWorkloadIDs) > 0 {
+			targetWorkloadIDs = []string{w.ID}
+			svc["targetWorkloadIds"] = targetWorkloadIDs
 		}
 	}
-	ingressResult, err = createRelatedResource(apiContext, ingressList, projectclient.IngressType, project, namespace)
+	serviceResult, err = createRelatedResource(apiContext, serviceList, projectclient.ServiceType, project, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +263,8 @@ func createRelatedResource(apiContext *types.APIContext, data []map[string]inter
 				resource = &projectclient.ConfigMap{}
 			case projectclient.PersistentVolumeClaimType:
 				resource = &projectclient.PersistentVolumeClaim{}
-			case projectclient.IngressType:
-				resource = &projectclient.Ingress{}
+			case projectclient.ServiceType:
+				resource = &projectclient.Service{}
 			}
 			err := access.Create(apiContext, &schema.Version, resourceType, r, resource)
 			if err != nil {
@@ -339,12 +334,15 @@ func rollbackResource(apiContext *types.APIContext, schema *types.Schema, rollba
 				continue
 			}
 			logrus.Infof("Rollback Clone resource %v, %v", convert.ToString(result["type"]), convert.ToString(result["id"]))
+			// make sure to roll back workload
+			apiContext.ID = convert.ToString(result["id"])
 			_, err = s.Delete(apiContext, schema, convert.ToString(result["id"]))
 			if err != nil && !apierrors.IsNotFound(err) {
 				logrus.Errorf("Rollback resource %v:%v error: %v", convert.ToString(result["type"]), convert.ToString(result["id"]), err)
 				continue
 			}
 		}
+		apiContext.ID = ""
 	}
 }
 

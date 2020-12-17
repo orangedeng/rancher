@@ -20,10 +20,8 @@ import (
 	batchv1beta1 "github.com/rancher/types/apis/batch/v1beta1"
 	clusterschema "github.com/rancher/types/apis/cluster.cattle.io/v3/schema"
 	v1 "github.com/rancher/types/apis/core/v1"
-	v1beta1 "github.com/rancher/types/apis/extensions/v1beta1"
 	mgmntv3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	clusterclient "github.com/rancher/types/client/cluster/v3"
-	client "github.com/rancher/types/client/project/v3"
 	"github.com/sirupsen/logrus"
 	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -97,8 +95,6 @@ func (v *Validator) Validator(request *types.APIContext, schema *types.Schema, d
 func isPermissionFit(request *types.APIContext, schema *types.Schema, project, ns string, data map[string]interface{}) error {
 	// check create workload permission
 	workloadData := convert.ToMapInterface(data["workload"])
-	workloadData[client.AppFieldNamespaceId] = ns
-	workloadData[client.AppFieldProjectID] = project
 	err := checkWorkloadPermission(request, schema, workloadData, ns)
 	if err != nil {
 		return err
@@ -142,14 +138,14 @@ func isPermissionFit(request *types.APIContext, schema *types.Schema, project, n
 		}
 	}
 
-	ingressData := convert.ToMapSlice(data["ingressList"])
-	if len(ingressData) > 0 {
-		ingressState := map[string]interface{}{
-			"name":        ingressData[0]["name"],
+	svcData := convert.ToMapSlice(data["serviceList"])
+	if len(svcData) > 0 {
+		svcState := map[string]interface{}{
+			"name":        svcData[0]["name"],
 			"namespaceId": ns,
 		}
-		if err := request.AccessControl.CanDo(v1beta1.IngressGroupVersionKind.Group, v1beta1.IngressResource.Name, "create", request, ingressState, schema); err != nil {
-			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create ingress in target namespace: %s", ns))
+		if err := request.AccessControl.CanDo(v1.ServiceGroupVersionKind.Group, v1.ServiceResource.Name, "create", request, svcState, schema); err != nil {
+			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create service in target namespace: %s", ns))
 		}
 	}
 
@@ -157,27 +153,41 @@ func isPermissionFit(request *types.APIContext, schema *types.Schema, project, n
 }
 
 func checkWorkloadPermission(request *types.APIContext, schema *types.Schema, workloadData map[string]interface{}, ns string) error {
+	workloadState := map[string]interface{}{
+		"name":        workloadData["name"],
+		"namespaceId": ns,
+	}
 	if _, ok := workloadData["deploymentConfig"]; ok {
-		if err := request.AccessControl.CanDo(apps.DeploymentGroupVersionKind.Group, apps.DeploymentResource.Name, "create", request, workloadData, schema); err != nil {
+		if err := request.AccessControl.CanDo(apps.DeploymentGroupVersionKind.Group, apps.DeploymentResource.Name, "create", request, workloadState, schema); err != nil {
 			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create Deployments in target namespace: %s", ns))
 		}
 	} else if _, ok := workloadData["daemonSetConfig"]; ok {
-		if err := request.AccessControl.CanDo(apps.DaemonSetGroupVersionKind.Group, apps.DaemonSetResource.Name, "create", request, workloadData, schema); err != nil {
+		if err := request.AccessControl.CanDo(apps.DaemonSetGroupVersionKind.Group, apps.DaemonSetResource.Name, "create", request, workloadState, schema); err != nil {
 			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create DaemonSets in target namespace: %s", ns))
 		}
 	} else if _, ok := workloadData["statefulSetConfig"]; ok {
-		if err := request.AccessControl.CanDo(apps.StatefulSetGroupVersionKind.Group, apps.StatefulSetResource.Name, "create", request, workloadData, schema); err != nil {
+		if err := request.AccessControl.CanDo(apps.StatefulSetGroupVersionKind.Group, apps.StatefulSetResource.Name, "create", request, workloadState, schema); err != nil {
 			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create StatefulSets in target namespace: %s", ns))
 		}
 	} else if _, ok := workloadData["jobConfig"]; ok {
-		if err := request.AccessControl.CanDo(batchv1.JobGroupVersionKind.Group, batchv1.JobResource.Name, "create", request, workloadData, schema); err != nil {
+		if err := request.AccessControl.CanDo(batchv1.JobGroupVersionKind.Group, batchv1.JobResource.Name, "create", request, workloadState, schema); err != nil {
 			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create Jobs in target namespace: %s", ns))
 		}
 	} else if _, ok := workloadData["cronJobConfig"]; ok {
-		if err := request.AccessControl.CanDo(batchv1beta1.CronJobGroupVersionKind.Group, batchv1beta1.CronJobResource.Name, "create", request, workloadData, schema); err != nil {
+		if err := request.AccessControl.CanDo(batchv1beta1.CronJobGroupVersionKind.Group, batchv1beta1.CronJobResource.Name, "create", request, workloadState, schema); err != nil {
 			return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create CronJobs in target namespace: %s", ns))
 		}
 	}
+
+	// check default service permission
+	svcState := map[string]interface{}{
+		"name":        workloadData["name"],
+		"namespaceId": ns,
+	}
+	if err := request.AccessControl.CanDo(v1.ServiceGroupVersionKind.Group, v1.ServiceResource.Name, "create", request, svcState, schema); err != nil {
+		return httperror.NewAPIError(httperror.PermissionDenied, fmt.Sprintf("has no permission to create service in target namespace: %s", ns))
+	}
+
 	return nil
 }
 
@@ -312,6 +322,7 @@ func summaryRelatedResourceQuota(data map[string]interface{}) api.ResourceList {
 func summaryWorkloadRelatedQuota(data map[string]interface{}, quotaLimit *mgmntv3.ResourceQuotaLimit) (api.ResourceList, error) {
 	workloadData := convert.ToMapInterface(data["workload"])
 	containerData := convert.ToMapSlice(workloadData["containers"])
+	serviceData := convert.ToMapSlice(data["serviceList"])
 	workloadQuota := api.ResourceList{}
 	for _, c := range containerData {
 		// check container resource limit
@@ -364,13 +375,13 @@ func summaryWorkloadRelatedQuota(data map[string]interface{}, quotaLimit *mgmntv
 					}
 				}
 			}
-			serviceNum = int64(len(usedNames))
+			serviceNum = int64(len(usedNames)) + int64(len(serviceData))
 			portQuota[clusterclient.ResourceQuotaLimitFieldServicesNodePorts] = *resource.NewQuantity(nodePortCount, resource.DecimalSI)
 			portQuota[clusterclient.ResourceQuotaLimitFieldServicesLoadBalancers] = *resource.NewQuantity(loadBalancerCount, resource.DecimalSI)
 			workloadQuota = quota.Add(workloadQuota, portQuota)
 		} else {
 			// if there's no port, rancher will create a default service
-			serviceNum = 1
+			serviceNum = int64(len(serviceData)) + 1
 		}
 		workloadQuota[clusterclient.ResourceQuotaLimitFieldServices] = *resource.NewQuantity(serviceNum, resource.DecimalSI)
 	}
