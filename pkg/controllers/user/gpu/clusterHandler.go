@@ -119,7 +119,11 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		appAnswers[appSchedulerNameAnswer] = schedulerName
 	}
 
-	appCatalogID := settings.SystemGPUManagementCatalogID.Get()
+	appCatalogID, err := gpu.GetGPUManagementCatalogID("", ch.app.catalogTemplateLister)
+	if err != nil {
+		return err
+	}
+
 	app := &v3.App{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{creatorIDAnno: creator.Name},

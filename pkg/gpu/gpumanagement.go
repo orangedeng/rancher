@@ -3,7 +3,11 @@ package gpu
 import (
 	"fmt"
 
+	cutils "github.com/rancher/rancher/pkg/catalog/utils"
+	versionutil "github.com/rancher/rancher/pkg/catalog/utils"
+	ns "github.com/rancher/rancher/pkg/namespace"
 	"github.com/rancher/rancher/pkg/ref"
+	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -16,7 +20,10 @@ const (
 )
 
 const (
-	cattleNamespaceName = "cattle-gpumanagement"
+	cattleNamespaceName              = "cattle-gpumanagement"
+	rancherGPUManagementTemplateName = "pandaria-rancher-gpu-management"
+	gpuManagementTemplateName        = "rancher-gpu-management"
+	pandariaLibraryName              = "pandaria"
 )
 
 const (
@@ -52,4 +59,20 @@ func OwnedLabels(appName, appTargetNamespace, appProjectName string) map[string]
 		appProjectIDLabelKey:       projectID,
 		appClusterIDLabelKey:       clusterID,
 	}
+}
+
+func GetGPUManagementCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister) (string, error) {
+	if version == "" {
+		template, err := catalogTemplateLister.Get(ns.GlobalNamespace, rancherGPUManagementTemplateName)
+		if err != nil {
+			return "", err
+		}
+
+		templateVersion, err := versionutil.LatestAvailableTemplateVersion(template)
+		if err != nil {
+			return "", err
+		}
+		version = templateVersion.Version
+	}
+	return fmt.Sprintf(cutils.CatalogExternalIDFormat, pandariaLibraryName, gpuManagementTemplateName, version), nil
 }
