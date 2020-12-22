@@ -3,12 +3,10 @@ package cluster
 import (
 	"fmt"
 
-	"github.com/rancher/kontainer-engine/service"
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	gaccess "github.com/rancher/rancher/pkg/api/customization/globalnamespaceaccess"
 	"github.com/rancher/rancher/pkg/clustermanager"
-	cv1 "github.com/rancher/types/apis/core/v1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	mgmtclient "github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/user"
@@ -31,11 +29,6 @@ type ActionHandler struct {
 	CisBenchmarkVersionLister     v3.CisBenchmarkVersionLister
 	CisConfigClient               v3.CisConfigInterface
 	CisConfigLister               v3.CisConfigLister
-	// PANDARIA: Refresh version of network addons
-	NetworkAddonsConfig       cv1.ConfigMapInterface
-	NetworkAddonsConfigLister cv1.ConfigMapLister
-	EngineService             *service.EngineService
-	KontainerDriverLister     v3.KontainerDriverLister
 }
 
 func (a ActionHandler) ClusterActionHandler(actionName string, action *types.Action, apiContext *types.APIContext) error {
@@ -112,15 +105,6 @@ func (a ActionHandler) ClusterActionHandler(actionName string, action *types.Act
 			return httperror.NewAPIError(httperror.PermissionDenied, "can not save the cluster as an RKETemplate")
 		}
 		return a.saveAsTemplate(actionName, action, apiContext)
-	// PANDARIA: Refresh version of network addons
-	case v3.ClusterActionRefreshNetworkAddons:
-		if !canUpdateCluster() {
-			return httperror.NewAPIError(httperror.PermissionDenied, "can not update the cluster network addons")
-		}
-		return a.RefreshNetworkAddons(actionName, action, apiContext)
-	// PANDARIA: Check if network addons have updates
-	case v3.ClusterActionCheckNetworkAddons:
-		return a.CheckNetworkAddons(actionName, action, apiContext)
 	}
 	return httperror.NewAPIError(httperror.NotFound, "not found")
 }
