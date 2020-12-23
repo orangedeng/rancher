@@ -9,7 +9,7 @@ steps:
   pull: default
   image: rancher/dapper:v0.5.2
   commands:
-  - dapper pre-check
+  - dapper -f Dockerfile-pandaria.dapper pre-check
   privileged: true
   volumes:
   - name: docker
