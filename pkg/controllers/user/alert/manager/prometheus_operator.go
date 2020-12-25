@@ -76,10 +76,6 @@ func (c *PromOperatorCRDManager) DeletePrometheusRule(namespace, name string) er
 }
 
 func (c *PromOperatorCRDManager) SyncPrometheusRule(promRule *monitoringv1.PrometheusRule) error {
-	if len(promRule.Spec.Groups) == 0 {
-		return nil
-	}
-
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: promRule.Namespace,
@@ -95,8 +91,17 @@ func (c *PromOperatorCRDManager) SyncPrometheusRule(promRule *monitoringv1.Prome
 			return fmt.Errorf("get prometheus rule %s:%s failed, %v", promRule.Namespace, promRule.Name, err)
 		}
 
-		if _, err = c.prometheusRules.Create(promRule); err != nil && !apierrors.IsAlreadyExists(err) {
-			return fmt.Errorf("create prometheus rule %s:%s failed, %v", promRule.Namespace, promRule.Name, err)
+		if len(promRule.Spec.Groups) != 0 {
+			if _, err = c.prometheusRules.Create(promRule); err != nil && !apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("create prometheus rule %s:%s failed, %v", promRule.Namespace, promRule.Name, err)
+			}
+		}
+		return nil
+	}
+
+	if len(promRule.Spec.Groups) == 0 {
+		if err := c.DeletePrometheusRule(promRule.Namespace, promRule.Name); err != nil {
+			return err
 		}
 		return nil
 	}

@@ -176,7 +176,12 @@ func (l *alertGroupCleaner) Clean(clusterGroup *v3.ClusterAlertGroup, projectGro
 			return fmt.Errorf("list cluster alert group failed while clean, %v", err)
 		}
 
-		if len(groups.Items) == 0 {
+		var recipients []v3.Recipient
+		for _, Item := range groups.Items {
+			recipients = append(recipients, Item.Spec.Recipients...)
+		}
+
+		if len(recipients) == 0 {
 			_, namespace := monitorutil.ClusterMonitoringInfo()
 			if err := l.operatorCRDManager.DeletePrometheusRule(namespace, l.clusterName); err != nil {
 				return err
@@ -212,7 +217,12 @@ func (l *alertGroupCleaner) Clean(clusterGroup *v3.ClusterAlertGroup, projectGro
 			return fmt.Errorf("list project alert group failed while clean, %v", err)
 		}
 
-		if len(groups.Items) == 0 {
+		var recipients []v3.Recipient
+		for _, Item := range groups.Items {
+			recipients = append(recipients, Item.Spec.Recipients...)
+		}
+
+		if len(recipients) == 0 {
 			_, namespace := monitorutil.ProjectMonitoringInfo(projectName)
 			if err := l.operatorCRDManager.DeletePrometheusRule(namespace, projectName); err != nil {
 				return err

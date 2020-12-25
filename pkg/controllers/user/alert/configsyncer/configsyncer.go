@@ -200,7 +200,7 @@ func (d *ConfigSyncer) sync() error {
 	cAlertsMap := map[string][]*v3.ClusterAlertRule{}
 	cAlertsKey := []string{}
 	for _, alert := range clusterAlertRules {
-		if _, ok := cAlertGroupsMap[alert.Spec.GroupName]; ok && alert.Status.AlertState != "inactive" {
+		if _, ok := cAlertGroupsMap[alert.Spec.GroupName]; ok {
 			cAlertsMap[alert.Spec.GroupName] = append(cAlertsMap[alert.Spec.GroupName], alert)
 		}
 	}
@@ -214,7 +214,7 @@ func (d *ConfigSyncer) sync() error {
 	pAlertsKey := []string{}
 	for _, alert := range projectAlertRules {
 		if controller.ObjectInCluster(d.clusterName, alert) {
-			if _, ok := pAlertGroupsMap[alert.Spec.GroupName]; ok && alert.Status.AlertState != "inactive" {
+			if _, ok := pAlertGroupsMap[alert.Spec.GroupName]; ok {
 				_, projectName := ref.Parse(alert.Spec.ProjectName)
 				if _, ok := pAlertsMap[projectName]; !ok {
 					pAlertsMap[projectName] = make(map[string][]*v3.ProjectAlertRule)
@@ -327,7 +327,7 @@ func (d *ConfigSyncer) addProjectAlert2Operator(clusterDisplayName string, proje
 			alertRules := groupRules[groupID]
 			ruleGroup := d.operatorCRDManager.GetRuleGroup(groupID)
 			for _, alertRule := range alertRules {
-				if alertRule.Spec.MetricRule != nil {
+				if alertRule.Spec.MetricRule != nil && alertRule.Status.AlertState != "inactive" {
 					nsSet, ok := projectNsSet[alertRule.Spec.ProjectName]
 					if !ok {
 						continue
@@ -351,10 +351,8 @@ func (d *ConfigSyncer) addProjectAlert2Operator(clusterDisplayName string, proje
 			}
 		}
 
-		if len(promRule.Spec.Groups) > 0 {
-			if err := d.operatorCRDManager.SyncPrometheusRule(promRule); err != nil {
-				return err
-			}
+		if err := d.operatorCRDManager.SyncPrometheusRule(promRule); err != nil {
+			return err
 		}
 	}
 
@@ -369,7 +367,7 @@ func (d *ConfigSyncer) addClusterAlert2Operator(clusterDisplayName string, group
 		ruleGroup := d.operatorCRDManager.GetRuleGroup(groupID)
 		alertRules := groupRules[groupID]
 		for _, alertRule := range alertRules {
-			if alertRule.Spec.MetricRule != nil {
+			if alertRule.Spec.MetricRule != nil && alertRule.Status.AlertState != "inactive" {
 				ruleID := common.GetRuleID(alertRule.Spec.GroupName, alertRule.Name)
 				promRule := manager.Metric2Rule(groupID, ruleID, alertRule.Spec.Severity, alertRule.Spec.DisplayName, clusterDisplayName, "", alertRule.Spec.MetricRule, alertRule.Spec.CommonRuleField.ExtraAlertDatas)
 				d.operatorCRDManager.AddRule(ruleGroup, promRule)
@@ -380,11 +378,7 @@ func (d *ConfigSyncer) addClusterAlert2Operator(clusterDisplayName string, group
 		}
 	}
 
-	if len(promRule.Spec.Groups) > 0 {
-		return d.operatorCRDManager.SyncPrometheusRule(promRule)
-	}
-
-	return nil
+	return d.operatorCRDManager.SyncPrometheusRule(promRule)
 }
 
 func (d *ConfigSyncer) addProjectAlert2Config(config *alertconfig.Config, projectGroups map[string]map[string][]*v3.ProjectAlertRule, keys []string, alertGroups map[string]*v3.ProjectAlertGroup, notifiers []*v3.Notifier) error {
