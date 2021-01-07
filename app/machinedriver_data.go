@@ -69,7 +69,7 @@ func addMachineDrivers(management *config.ManagementContext) error {
 		aliyunActive = false
 	}
 	if err := addMachineDriver("aliyunecs", "https://localhost/assets/engine-drivers/docker-machine-driver-aliyunecs-linux-amd64.tgz",
-		"/assets/driver-aliyunecs/component.js", "4b33e1b6196dc85153dbd30666399312f0118cdc6961d2e7af589f05e816c758", []string{"ecs.aliyuncs.com"}, aliyunActive, false, management); err != nil {
+		"/assets/driver-aliyunecs/component.js", "e5008687a19c4fe8a28fc0ae2938b7f8e09d2d7b6f58d8132bbdd46b4bc185f0", []string{"ecs.aliyuncs.com"}, aliyunActive, false, management); err != nil {
 		return err
 	}
 
