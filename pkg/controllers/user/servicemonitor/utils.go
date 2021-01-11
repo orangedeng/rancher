@@ -17,6 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+const (
+	relabelType = "relabel"
+)
+
 func filterRancherLabels(l map[string]string) labels.Set {
 	rtn := map[string]string{}
 	for k, v := range l {
@@ -95,17 +99,31 @@ func getServiceMonitorFromWorkload(w *util.Workload) (*monitoringv1.ServiceMonit
 
 		if len(metric.WorkloadMetricRelabelConfig) != 0 {
 			var metricRelabel []*monitoringv1.RelabelConfig
+			var relabel []*monitoringv1.RelabelConfig
 			for _, v := range metric.WorkloadMetricRelabelConfig {
 				if v.Regex != "" {
-					metricRelabel = append(metricRelabel, &monitoringv1.RelabelConfig{
-						Regex:  v.Regex,
-						Action: v.Action,
-					})
+					rc := &monitoringv1.RelabelConfig{
+						Regex:        v.Regex,
+						Action:       v.Action,
+						TargetLabel:  v.TargetLabel,
+						SourceLabels: v.SourceLabels,
+						Replacement:  v.Replacement,
+					}
+
+					if v.RelabelType == relabelType {
+						relabel = append(relabel, rc)
+					} else {
+						metricRelabel = append(metricRelabel, rc)
+					}
 				}
 			}
 
 			if len(metricRelabel) != 0 {
 				endpoint.MetricRelabelConfigs = metricRelabel
+			}
+
+			if len(relabel) != 0 {
+				endpoint.RelabelConfigs = relabel
 			}
 		}
 
@@ -150,8 +168,12 @@ func areServiceMonitorEqual(a, b *monitoringv1.ServiceMonitor) bool {
 		for j := 0; j < len(bEndpoint.MetricRelabelConfigs); j++ {
 			aRelabel := aEndpoint.MetricRelabelConfigs[j]
 			bRelabel := bEndpoint.MetricRelabelConfigs[j]
-			if aRelabel.Regex != bRelabel.Regex ||
-				aRelabel.Action != bRelabel.Action {
+
+			sort.Strings(aRelabel.SourceLabels)
+			sort.Strings(bRelabel.SourceLabels)
+
+			if aRelabel.Regex != bRelabel.Regex || aRelabel.Action != bRelabel.Action || aRelabel.TargetLabel != bRelabel.TargetLabel ||
+				aRelabel.Replacement != bRelabel.Replacement || !reflect.DeepEqual(aRelabel.SourceLabels, bRelabel.SourceLabels) {
 				return false
 			}
 		}
