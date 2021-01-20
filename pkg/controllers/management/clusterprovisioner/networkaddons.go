@@ -36,6 +36,7 @@ func (p *Provisioner) handleNetworkPlugin(old v3.ClusterSpec, clusterName string
 			err := p.handleMultusCanal(spec.RancherKubernetesEngineConfig, clusterName)
 			return *spec, err
 		case "none":
+			setCertsArgs(spec.RancherKubernetesEngineConfig)
 			switch spec.RancherKubernetesEngineConfig.Network.Options[extraPluginName] {
 			case pluginMultusFlannel:
 				err := p.handleMultusFlannel(spec.RancherKubernetesEngineConfig, clusterName)
