@@ -57,7 +57,7 @@ steps:
   pull: default
   image: plugins/docker:18.09
   settings:
-    build_args: 
+    build_args:
     - ARCH=amd64
     - VERSION=v2.4-${DRONE_BUILD_NUMBER}-head
     context: package/
@@ -115,8 +115,8 @@ steps:
     tag: "${DRONE_TAG}-linux-amd64"
     username:
       from_secret: docker_username
-  when: 
-    event:  
+  when:
+    event:
     - tag
 
 - name: docker-publish-agent
@@ -165,7 +165,7 @@ steps:
       from_secret: github_token
     checksum:
     - sha256
-    files:  
+    files:
     - "bin/rancher-*"
     prerelease: true
   when:
@@ -216,7 +216,7 @@ steps:
     - tag
 
 volumes:
-- name: docker 
+- name: docker
   host:
     path: /var/run/docker.sock
 - name: vendor-cache
@@ -228,7 +228,7 @@ node:
 
 trigger:
   event:
-    exclude: 
+    exclude:
     - promote
 
 ---
@@ -277,7 +277,7 @@ steps:
     context: package/
     custom_dns: 1.1.1.1
     dockerfile: package/Dockerfile.pandaria
-    tag: v2.4-head-linux-arm64  
+    tag: v2.4-head-linux-arm64
     password:
       from_secret: docker_password
     repo: cnrancher/rancher
@@ -296,10 +296,10 @@ steps:
     build_args:
     - ARCH=arm64
     - VERSION=v2.4-${DRONE_BUILD_NUMBER}-head
-    context: package/ 
-    custom_dns: 1.1.1.1 
-    dockerfile: package/Dockerfile-pandaria.agent  
-    tag: v2.4-head-linux-arm64  
+    context: package/
+    custom_dns: 1.1.1.1
+    dockerfile: package/Dockerfile-pandaria.agent
+    tag: v2.4-head-linux-arm64
     password:
       from_secret: docker_password
     repo: cnrancher/rancher-agent
@@ -362,6 +362,7 @@ trigger:
   event:
     exclude:
     - promote
+    - pull_request
 
 node:
   instance: agent-arm64
@@ -449,15 +450,16 @@ steps:
     event:
     - tag
 
-volumes:  
-- name: docker 
+volumes:
+- name: docker
   host:
     path: /var/run/docker.sock
 
 trigger:
   event:
-    exclude: 
+    exclude:
     - promote
+    - pull_request
 
 node:
   instance: agent-amd64
