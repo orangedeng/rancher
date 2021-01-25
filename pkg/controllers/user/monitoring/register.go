@@ -81,7 +81,6 @@ func Register(ctx context.Context, agentContext *config.UserContext) {
 	ph := &projectHandler{
 		clusterName:         clusterName,
 		clusterLister:       mgmtContext.Clusters(metav1.NamespaceAll).Controller().Lister(),
-		catalogManager:      cattleContext.CatalogManager,
 		cattleProjectClient: cattleProjectsClient,
 		app:                 ah,
 	}

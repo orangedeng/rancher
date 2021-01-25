@@ -206,9 +206,9 @@ grafana.persistence.accessMode       	| ReadWriteOnce
 grafana.persistence.size             	| 50Gi
 
 */
-func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations map[string]string,
-	catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (map[string]string, string, error) {
-	overwriteAnswers, _, _, version := GetOverwroteAppAnswersAndVersion(annotations)
+func OverwriteAppAnswersAndCatalogID(annotations map[string]string,
+	catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (map[string]string, string, string, error) {
+	overwriteAnswers, valuesYaml, _, version := GetOverwroteAppAnswersAndVersion(annotations)
 	for specialKey, value := range overwriteAnswers {
 		if strings.HasPrefix(specialKey, "_tpl-") {
 			trr := tplRegexp.translate(value)
@@ -228,12 +228,9 @@ func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations m
 		}
 	}
 
-	for key, value := range overwriteAnswers {
-		rawAnswers[key] = value
-	}
 	catalogID, err := GetMonitoringCatalogID(version, catalogTemplateLister, catalogManager, clusterName)
 
-	return overwriteAnswers, catalogID, err
+	return overwriteAnswers, valuesYaml, catalogID, err
 }
 
 func GetMonitoringCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (string, error) {

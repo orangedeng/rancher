@@ -11,7 +11,6 @@ import (
 	kcluster "github.com/rancher/kontainer-engine/cluster"
 	"github.com/rancher/rancher/pkg/app/utils"
 	"github.com/rancher/rancher/pkg/catalog/manager"
-	"github.com/rancher/rancher/pkg/controllers/user/nslabels"
 	"github.com/rancher/rancher/pkg/monitoring"
 	"github.com/rancher/rancher/pkg/node"
 	"github.com/rancher/rancher/pkg/ref"
@@ -315,19 +314,13 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].source_labels[1]": "__meta_kubernetes_endpoints_name",
 		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].action":           "keep",
 		"prometheus.additionalAlertManagerConfigs[0].relabel_configs[0].regex":            "cattle-prometheus;access-alertmanager",
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].key":              nslabels.ProjectIDFieldLabel,
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].operator":         "In",
-		"prometheus.serviceMonitorNamespaceSelector.matchExpressions[0].values[0]":        appDeployProjectID,
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].key":                        nslabels.ProjectIDFieldLabel,
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].operator":                   "In",
-		"prometheus.ruleNamespaceSelector.matchExpressions[0].values[0]":                  appDeployProjectID,
 		"prometheus.ruleSelector.matchExpressions[0].key":                                 monitoring.CattlePrometheusRuleLabelKey,
 		"prometheus.ruleSelector.matchExpressions[0].operator":                            "In",
 		"prometheus.ruleSelector.matchExpressions[0].values[0]":                           monitoring.CattleAlertingPrometheusRuleLabelValue,
 		"prometheus.ruleSelector.matchExpressions[0].values[1]":                           monitoring.CattleMonitoringPrometheusRuleLabelValue,
 	}
 
-	appAnswers, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(optionalAppAnswers, cluster.Annotations, ch.app.catalogTemplateLister, ch.cattleCatalogManager, ch.clusterName)
+	appAnswers, valuesYaml, appCatalogID, err := monitoring.OverwriteAppAnswersAndCatalogID(cluster.Annotations, ch.app.catalogTemplateLister, ch.cattleCatalogManager, ch.clusterName)
 	if err != nil {
 		return nil, err
 	}
