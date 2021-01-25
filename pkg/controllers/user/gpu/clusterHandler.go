@@ -121,7 +121,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		appAnswers[appSchedulerNameAnswer] = schedulerName
 	}
 
-	appCatalogID, err := gpu.GetGPUManagementCatalogID("", ch.app.catalogTemplateLister, ch.catalogManager, cluster.Name)
+	appCatalogID, err := gpu.GetGPUManagementCatalogID("", ch.app.catalogTemplateLister, ch.catalogManager, ch.clusterName)
 	if err != nil {
 		return err
 	}
