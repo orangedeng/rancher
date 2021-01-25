@@ -233,7 +233,7 @@ func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations m
 	}
 	catalogID, err := GetMonitoringCatalogID(version, catalogTemplateLister, catalogManager, clusterName)
 
-	return overwriteAnswers, valuesYaml, catalogID, err
+	return overwriteAnswers, catalogID, err
 }
 
 func GetMonitoringCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (string, error) {

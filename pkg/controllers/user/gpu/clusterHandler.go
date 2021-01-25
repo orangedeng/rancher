@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rancher/rancher/pkg/app/utils"
+	"github.com/rancher/rancher/pkg/catalog/manager"
 	"github.com/rancher/rancher/pkg/gpu"
 	"github.com/rancher/rancher/pkg/ref"
 	"github.com/rancher/rancher/pkg/settings"
@@ -22,6 +23,7 @@ const (
 
 type clusterHandler struct {
 	clusterName          string
+	catalogManager       manager.CatalogManager
 	cattleClustersClient mgmtv3.ClusterInterface
 	app                  *appHandler
 }
@@ -119,7 +121,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 		appAnswers[appSchedulerNameAnswer] = schedulerName
 	}
 
-	appCatalogID, err := gpu.GetGPUManagementCatalogID("", ch.app.catalogTemplateLister)
+	appCatalogID, err := gpu.GetGPUManagementCatalogID("", ch.app.catalogTemplateLister, ch.catalogManager, cluster.Name)
 	if err != nil {
 		return err
 	}

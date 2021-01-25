@@ -43,6 +43,7 @@ func Register(ctx context.Context, agentContext *config.UserContext) {
 	// cluster handler
 	ch := &clusterHandler{
 		clusterName:          clusterName,
+		catalogManager:       cattleContext.CatalogManager,
 		cattleClustersClient: cattleClustersClient,
 		app:                  ah,
 	}

@@ -3,8 +3,8 @@ package gpu
 import (
 	"fmt"
 
+	"github.com/rancher/rancher/pkg/catalog/manager"
 	cutils "github.com/rancher/rancher/pkg/catalog/utils"
-	versionutil "github.com/rancher/rancher/pkg/catalog/utils"
 	ns "github.com/rancher/rancher/pkg/namespace"
 	"github.com/rancher/rancher/pkg/ref"
 	mgmtv3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -61,14 +61,14 @@ func OwnedLabels(appName, appTargetNamespace, appProjectName string) map[string]
 	}
 }
 
-func GetGPUManagementCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister) (string, error) {
+func GetGPUManagementCatalogID(version string, catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (string, error) {
 	if version == "" {
 		template, err := catalogTemplateLister.Get(ns.GlobalNamespace, rancherGPUManagementTemplateName)
 		if err != nil {
 			return "", err
 		}
 
-		templateVersion, err := versionutil.LatestAvailableTemplateVersion(template)
+		templateVersion, err := catalogManager.LatestAvailableTemplateVersion(template, clusterName)
 		if err != nil {
 			return "", err
 		}
