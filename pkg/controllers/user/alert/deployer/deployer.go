@@ -56,30 +56,30 @@ type Deployer struct {
 }
 
 type appDeployer struct {
-	appsGetter           projectv3.AppsGetter
-	appsLister           projectv3.AppLister
-	catalogManager       manager2.CatalogManager
-	namespaces           v1.NamespaceInterface
-	secrets              v1.SecretInterface
-	templateLister       mgmtv3.CatalogTemplateLister
-	statefulsets         appsv1.StatefulSetInterface
-	systemAccountManager *systemaccount.Manager
-	deployments          appsv1.DeploymentInterface
+	appsGetter                 projectv3.AppsGetter
+	appsLister                 projectv3.AppLister
+	catalogManager             manager2.CatalogManager
+	namespaces                 v1.NamespaceInterface
+	secrets                    v1.SecretInterface
+	templateLister             mgmtv3.CatalogTemplateLister
+	statefulsets               appsv1.StatefulSetInterface
+	systemAccountManager       *systemaccount.Manager
+	deployments                appsv1.DeploymentInterface
 	notificationTemplateLister mgmtv3.NotificationTemplateLister
 }
 
 func NewDeployer(cluster *config.UserContext, manager *manager.AlertManager) *Deployer {
 	appsgetter := cluster.Management.Project
 	ad := &appDeployer{
-		appsGetter:           appsgetter,
-		appsLister:           cluster.Management.Project.Apps("").Controller().Lister(),
-		catalogManager:       cluster.Management.CatalogManager,
-		namespaces:           cluster.Core.Namespaces(metav1.NamespaceAll),
-		secrets:              cluster.Core.Secrets(metav1.NamespaceAll),
-		templateLister:       cluster.Management.Management.CatalogTemplates(namespace.GlobalNamespace).Controller().Lister(),
-		statefulsets:         cluster.Apps.StatefulSets(metav1.NamespaceAll),
-		systemAccountManager: systemaccount.NewManager(cluster.Management),
-		deployments:          cluster.Apps.Deployments(metav1.NamespaceAll),
+		appsGetter:                 appsgetter,
+		appsLister:                 cluster.Management.Project.Apps("").Controller().Lister(),
+		catalogManager:             cluster.Management.CatalogManager,
+		namespaces:                 cluster.Core.Namespaces(metav1.NamespaceAll),
+		secrets:                    cluster.Core.Secrets(metav1.NamespaceAll),
+		templateLister:             cluster.Management.Management.CatalogTemplates(namespace.GlobalNamespace).Controller().Lister(),
+		statefulsets:               cluster.Apps.StatefulSets(metav1.NamespaceAll),
+		systemAccountManager:       systemaccount.NewManager(cluster.Management),
+		deployments:                cluster.Apps.Deployments(metav1.NamespaceAll),
 		notificationTemplateLister: cluster.Management.Management.NotificationTemplates(cluster.ClusterName).Controller().Lister(),
 	}
 
