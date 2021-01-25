@@ -208,7 +208,7 @@ grafana.persistence.size             	| 50Gi
 */
 func OverwriteAppAnswersAndCatalogID(rawAnswers map[string]string, annotations map[string]string,
 	catalogTemplateLister mgmtv3.CatalogTemplateLister, catalogManager manager.CatalogManager, clusterName string) (map[string]string, string, error) {
-	overwriteAnswers, version := GetOverwroteAppAnswersAndVersion(annotations)
+	overwriteAnswers, _, _, version := GetOverwroteAppAnswersAndVersion(annotations)
 	for specialKey, value := range overwriteAnswers {
 		if strings.HasPrefix(specialKey, "_tpl-") {
 			trr := tplRegexp.translate(value)
