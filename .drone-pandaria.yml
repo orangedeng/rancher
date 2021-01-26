@@ -86,7 +86,7 @@ steps:
     context: package/
     custom_dns: 1.1.1.1
     dockerfile: package/Dockerfile-pandaria.agent
-    tag: v2.4-head
+    tag: v2.4-${DRONE_BUILD_NUMBER}-head
     password:
       from_secret: docker_password
     repo: cnrancher/rancher-agent
