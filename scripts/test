@@ -44,5 +44,5 @@ done
 echo Running tests
 
 cd $(dirname $0)/../tests/integration
-tox -- -m "not nonparallel" -n $(expr $(nproc) / 2)
+tox -- -m "not nonparallel" -n $(nproc)
 tox -- -m nonparallel

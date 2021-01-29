@@ -8,6 +8,9 @@ steps:
 - name: pre-check
   pull: default
   image: rancher/dapper:v0.5.2
+  environment:
+    http_proxy:
+      from_secret: http_proxy
   commands:
   - dapper -f Dockerfile-pandaria.dapper pre-check
   privileged: true
@@ -28,6 +31,9 @@ steps:
       from_secret: github_token
     GOPROXY:
       from_secret: go_proxy
+    http_proxy:
+      from_secret: http_proxy
+    SKIP_TESTS: 1
   commands:
   - apk add git make curl go=1.13.13-r0 bzr
   - make -f Makefile.pandaria
@@ -35,14 +41,35 @@ steps:
   volumes:
   - name: docker
     path: /var/run/docker.sock
-  - name: vendor-cache
-    path: /root/go/pkg
   privileged: true
   when:
     event:
     - push
     - pull_request
     - tag
+
+- name: cron-build
+  pull: default
+  image: rancher/dapper:v0.5.2
+  environment:
+    OAUTH_TOKEN:
+      from_secret: github_token
+    GOPROXY:
+      from_secret: go_proxy
+    http_proxy:
+      from_secret: http_proxy
+    SKIP_TESTS: 1
+  commands:
+  - apk add git make curl go=1.13.13-r0 bzr
+  - make -f Makefile.pandaria
+  privileged: true
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
+  privileged: true
+  when:
+    event:
+    - cron
 
 - name: stage-binaries
   image: rancher/dapper:v0.5.2
@@ -152,8 +179,6 @@ steps:
   volumes:
   - name: docker
     path: /var/run/docker.sock
-  - name: vendor-cache
-    path: /root/go/pkg
   when:
     event:
     - tag
@@ -219,9 +244,6 @@ volumes:
 - name: docker
   host:
     path: /var/run/docker.sock
-- name: vendor-cache
-  host:
-    path: /opt/vendor-cache
 
 node:
   instance: agent-amd64
@@ -247,6 +269,9 @@ steps:
       from_secret: github_token
     GOPROXY:
       from_secret: go_proxy
+    http_proxy:
+      from_secret: http_proxy
+    SKIP_TESTS: 1
   commands:
   - apk add git make curl go=1.13.13-r0 bzr
   - make -f Makefile.pandaria
@@ -254,8 +279,6 @@ steps:
   volumes:
   - name: docker
     path: /var/run/docker.sock
-  - name: vendor-cache
-    path: /root/go/pkg
   when:
     event:
     - tag
@@ -310,9 +333,6 @@ volumes:
 - name: docker
   host:
     path: /var/run/docker.sock
-- name: vendor-cache
-  host:
-    path: /opt/vendor-cache
 
 trigger:
   event:

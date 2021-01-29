@@ -5,6 +5,8 @@ cd $(dirname $0)
 
 ./validate
 ./build
-./test
+if [ -z "$SKIP_TESTS" ]; then
+    ./test
+fi
 ./package
 ./chart/ci
