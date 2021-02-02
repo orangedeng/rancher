@@ -96,6 +96,10 @@ func (n *ProviderCatalogLauncher) sync(key string, obj *v3.GlobalDNSProvider) (r
 		return n.handleRDNSProvider(obj)
 	}
 
+	// PANDARIA
+	if obj.Spec.F5BIGIPProviderConfig != nil {
+		return n.handleF5BIGIPProvider(obj)
+	}
 	return nil, nil
 }
 
