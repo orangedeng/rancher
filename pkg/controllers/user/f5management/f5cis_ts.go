@@ -21,6 +21,17 @@ func (c *Controller) syncTansportServer(key string, obj *f5cisv1.TransportServer
 		return nil, nil
 	}
 
+	poolMemberType := obj.Annotations[poolMemberTypeAnnotation]
+	var serviceType corev1.ServiceType
+	switch poolMemberType {
+	case "cluster":
+		serviceType = corev1.ServiceTypeClusterIP
+	case "nodeport":
+		serviceType = corev1.ServiceTypeNodePort
+	default:
+		serviceType = corev1.ServiceTypeClusterIP
+	}
+
 	targets := obj.Annotations[f5TargetAnnotation]
 
 	if len(targets) == 0 {
@@ -62,7 +73,7 @@ func (c *Controller) syncTansportServer(key string, obj *f5cisv1.TransportServer
 	}
 
 	for _, f5Service := range expectedServices {
-		toCreate := f5Service.generateNewServiceForTS(obj, corev1.ServiceTypeClusterIP)
+		toCreate := f5Service.generateNewServiceForTS(obj, serviceType)
 
 		logrus.Infof("Creating %s service %s for f5 virtualserver %s, port %d", f5Service.serviceName, toCreate.Spec.Type, key, f5Service.servicePort)
 		if _, err := c.services.Create(toCreate); err != nil {

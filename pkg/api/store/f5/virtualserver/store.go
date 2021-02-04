@@ -1,6 +1,8 @@
 package virtualserver
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -8,9 +10,17 @@ import (
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
+	"github.com/rancher/norman/types/values"
 	"github.com/rancher/types/config"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	managementv3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	projectv3 "github.com/rancher/types/client/project/v3"
+)
+
+const (
+	poolMemberTypeAnnotation   = "f5.cattle.io/poolmembertype"
+	clusterF5AnswersAnnotation = "field.cattle.io/overwriteF5CISAppAnswers"
 )
 
 func Wrap(store types.Store, context *config.ScaledContext) types.Store {
@@ -18,18 +28,32 @@ func Wrap(store types.Store, context *config.ScaledContext) types.Store {
 		Store: store,
 	}
 	modify.mu = sync.Mutex{}
+	modify.clusters = context.Management.Clusters("")
 	return modify
 }
 
 type Store struct {
 	types.Store
-	mu sync.Mutex
+	mu       sync.Mutex
+	clusters managementv3.ClusterInterface
 }
 
 func (p *Store) Create(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}) (map[string]interface{}, error) {
 	vsName := convert.ToString(data[projectv3.VirtualServerFieldVirtualServerName])
 
-	err := canUseVirtualServerName(apiContext, vsName)
+	url := apiContext.Request.URL.String()
+
+	clusterID := getClusterID(url)
+	if clusterID == "" {
+		return nil, fmt.Errorf("Get ClusterID from URL error")
+	}
+
+	err := p.setF5PoolMemberType(clusterID, data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = canUseVirtualServerName(apiContext, vsName)
 	if err != nil {
 		return nil, err
 	}
@@ -157,5 +181,38 @@ func canUseAddressAndPort(apiContext *types.APIContext, address string, httpPort
 		}
 	}
 
+	return nil
+}
+
+func getClusterID(url string) string {
+	splits := strings.Split(url, "/")
+	projectID := splits[3]
+	clusterID := strings.Split(projectID, ":")[0]
+	return clusterID
+}
+
+func (p *Store) setF5PoolMemberType(clusterID string, data map[string]interface{}) error {
+	cluster, err := p.clusters.Get(clusterID, v1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	answers, ok := cluster.Annotations[clusterF5AnswersAnnotation]
+	if !ok {
+		return fmt.Errorf("Get cluster F5 app answers failed")
+	}
+
+	var input managementv3.F5CISInput
+	if err = json.Unmarshal(([]byte)(answers), &input); err != nil {
+		return httperror.WrapAPIError(err, httperror.ServerError, "failed to parse cluster f5 answers")
+	}
+
+	poolMemberType, ok := input.Answers["network.poolMemberType"]
+
+	if !ok {
+		poolMemberType = "cluster"
+	}
+
+	values.PutValue(data, poolMemberType, "annotations", poolMemberTypeAnnotation)
 	return nil
 }
