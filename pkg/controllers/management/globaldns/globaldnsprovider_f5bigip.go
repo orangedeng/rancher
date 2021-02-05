@@ -1,6 +1,8 @@
 package globaldns
 
 import (
+	"encoding/json"
+
 	"github.com/rancher/rancher/pkg/settings"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -8,7 +10,11 @@ import (
 
 func (n *ProviderCatalogLauncher) handleF5BIGIPProvider(obj *v3.GlobalDNSProvider) (runtime.Object, error) {
 	rancherInstallUUID := settings.InstallUUID.Get()
-	// create external-dns rdns provider
+	// create external-dns bigipf5 provider
+	deviceIps, err := json.Marshal(obj.Spec.F5BIGIPProviderConfig.F5BIGIPDeviceIPS)
+	if err != nil {
+		return nil, err
+	}
 	answers := map[string]string{
 		"provider":                         "f5bigip",
 		"f5bigip.f5_bigip_host":            obj.Spec.F5BIGIPProviderConfig.F5BIGIPHost,
@@ -17,8 +23,7 @@ func (n *ProviderCatalogLauncher) handleF5BIGIPProvider(obj *v3.GlobalDNSProvide
 		"f5bigip.f5_bigip_passwd":          obj.Spec.F5BIGIPProviderConfig.F5BIGIPPasswd,
 		"f5bigip.f5_bigip_datacenter_name": obj.Spec.F5BIGIPProviderConfig.F5BIGIPDatacenterName,
 		"f5bigip.f5_bigip_server_name":     obj.Spec.F5BIGIPProviderConfig.F5BIGIPServerName,
-		"f5bigip.f5_bigip_device_ip":       obj.Spec.F5BIGIPProviderConfig.F5BIGIPDeviceIP,
-		"f5bigip.f5_bigip_device_name":     obj.Spec.F5BIGIPProviderConfig.F5BIGIPDeviceName,
+		"f5bigip.f5_bigip_device_ips":      string(deviceIps),
 		"txtOwnerId":                       rancherInstallUUID + "_" + obj.Name,
 		"rbac.create":                      "true",
 		"policy":                           "sync",
