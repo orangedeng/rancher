@@ -58,7 +58,6 @@ steps:
       from_secret: go_proxy
     http_proxy:
       from_secret: http_proxy
-    SKIP_TESTS: 1
   commands:
   - apk add git make curl go=1.13.13-r0 bzr
   - make -f Makefile.pandaria
