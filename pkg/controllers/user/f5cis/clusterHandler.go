@@ -115,7 +115,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 
 	mustAppAnswers := map[string]string{}
 
-	appAnswers, _, appCatalogID, err := f5cis.GetF5CISAppAnswersAndCatalogID(cluster.Annotations, ch.app.catalogTemplateLister, ch.catalogManager, ch.clusterName)
+	appAnswers, valuesYaml, appCatalogID, err := f5cis.GetF5CISAppAnswersAndCatalogID(cluster.Annotations, ch.app.catalogTemplateLister, ch.catalogManager, ch.clusterName)
 	if err != nil {
 		return err
 	}
@@ -138,6 +138,7 @@ func (ch *clusterHandler) deployApp(appName, appTargetNamespace string, appProje
 			ExternalID:      appCatalogID,
 			ProjectName:     appProjectName,
 			TargetNamespace: appTargetNamespace,
+			ValuesYaml:      valuesYaml,
 		},
 	}
 
