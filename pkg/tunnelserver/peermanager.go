@@ -167,5 +167,6 @@ func (p *peerManager) Leader() {
 	}
 
 	p.leader = true
+	settings.LeaderEndpoint.Set(p.server.PeerID)
 	p.notify()
 }

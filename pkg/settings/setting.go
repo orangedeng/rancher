@@ -91,6 +91,7 @@ var (
 	HarborAdminAuth                   = NewSetting("harbor-admin-auth", "")                                              // PANDARIA: harbor admin auth user
 	HarborAuthMode                    = NewSetting("harbor-auth-mode", "")                                               // PANDARIA: harbor auth mode
 	HarborVersion                     = NewSetting("harbor-version", "")                                                 // PANDARIA: harbor auth mode
+	LeaderEndpoint                    = NewSetting("leader-endpoint", "")                                                // PANDARIA: show rancher leader endpoint
 )
 
 func init() {

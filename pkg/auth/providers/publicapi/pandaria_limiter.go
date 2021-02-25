@@ -224,3 +224,7 @@ func lookupRemoteIP(r *http.Request) string {
 
 	return ""
 }
+
+func HasLoginLimit() bool {
+	return os.Getenv(loginCooldownEnv) != "" || os.Getenv(loginRateLimitEnv) != ""
+}

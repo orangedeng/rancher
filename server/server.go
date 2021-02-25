@@ -96,7 +96,7 @@ func Start(ctx context.Context, localClusterEnabled bool, scaledContext *config.
 	chainGzip := responsewriter.NewMiddlewareChain(responsewriter.Gzip, responsewriter.ContentType)
 
 	root.Handle("/", chain.Handler(managementAPI))
-	root.PathPrefix("/v3-public").Handler(publicAPI)
+	root.PathPrefix("/v3-public").HandlerFunc(httpproxy.ProxyToLeader(scaledContext, publicAPI))
 	root.Handle("/v3/import/{token}.yaml", http.HandlerFunc(clusterregistrationtokens.ClusterImportHandler))
 	root.Handle("/v3/connect", connectHandler)
 	root.Handle("/v3/connect/register", connectHandler)
