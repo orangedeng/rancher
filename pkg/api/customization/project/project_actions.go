@@ -21,7 +21,9 @@ import (
 	client "github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/compose"
 	"github.com/rancher/types/user"
+	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 )
 
 func Formatter(apiContext *types.APIContext, resource *types.RawResource) {
@@ -139,11 +141,17 @@ func (h *Handler) setPodSecurityPolicyTemplate(actionName string, action *types.
 		return err
 	}
 
-	project, err := h.updateProjectPSPTID(request, podSecurityPolicyTemplateName)
-	if err != nil {
-		if apierrors.IsConflict(err) {
-			return httperror.WrapAPIError(err, httperror.Conflict, "error updating PSPT ID")
+	var project *v3.Project
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		project, err = h.updateProjectPSPTID(request, podSecurityPolicyTemplateName)
+		if err != nil {
+			logrus.Warnf("error retry updating PSPT ID, will try later: %v", err)
+			return err
 		}
+		return nil
+	})
+
+	if retryErr != nil {
 		return fmt.Errorf("error updating PSPT ID: %v", err)
 	}
 
