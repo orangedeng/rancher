@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	f5TargetAnnotation       = "f5.cattle.io/targets"
+	f5TargetAnnotation       = "f5.pandaria.io/targets"
 	poolMemberTypeAnnotation = "f5.cattle.io/poolmembertype"
 )
 
