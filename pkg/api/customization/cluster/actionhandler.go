@@ -108,6 +108,23 @@ func (a ActionHandler) ClusterActionHandler(actionName string, action *types.Act
 			return httperror.NewAPIError(httperror.PermissionDenied, "can not save the cluster as an RKETemplate")
 		}
 		return a.saveAsTemplate(actionName, action, apiContext)
+	case v3.ClusterActionEnableF5CIS: //PANDARIA
+		if !canUpdateCluster() {
+			return httperror.NewAPIError(httperror.PermissionDenied, "can not access")
+		}
+		return a.enableF5CIS(actionName, action, apiContext)
+	case v3.ClusterActionEditF5CIS: //PANDARIA
+		if !canUpdateCluster() {
+			return httperror.NewAPIError(httperror.PermissionDenied, "can not access")
+		}
+		return a.editF5CIS(actionName, action, apiContext)
+	case v3.ClusterActionDisableF5CIS: //PANDARIA
+		if !canUpdateCluster() {
+			return httperror.NewAPIError(httperror.PermissionDenied, "can not access")
+		}
+		return a.disableF5CIS(actionName, action, apiContext)
+	case v3.ClusterActionViewF5CIS: //PANDARIA
+		return a.viewF5CIS(actionName, action, apiContext)
 	}
 	return httperror.NewAPIError(httperror.NotFound, "not found")
 }

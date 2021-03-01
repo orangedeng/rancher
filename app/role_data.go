@@ -139,7 +139,10 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("management.cattle.io").resources("catalogtemplates").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("catalogtemplateversions").verbs("get", "list", "watch").
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
-		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
+		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
+		addRule().apiGroups("cis.f5.com").resources("virtualservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("transportservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("tlsprofiles").verbs("*")
 
 	rb.addRoleTemplate("Create Projects", "projects-create", "cluster", false, false, false).
 		addRule().apiGroups("management.cattle.io").resources("projects").verbs("create")
@@ -182,6 +185,11 @@ func addRoles(management *config.ManagementContext) (string, error) {
 	rb.addRoleTemplate("View MacvlanSubnets", "macvlansubnets-view", "cluster", false, false, false).
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch")
+
+	rb.addRoleTemplate("Manage F5", "f5-view", "cluster", false, false, false).
+		addRule().apiGroups("cis.f5.com").resources("virtualservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("transportservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("tlsprofiles").verbs("*")
 
 	rb.addRoleTemplate("Manage Cluster Catalogs", "clustercatalogs-manage", "cluster", false, false, true).
 		addRule().apiGroups("management.cattle.io").resources("clustercatalogs").verbs("*")
@@ -227,6 +235,9 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("*").
 		addRule().apiGroups("management.cattle.io").resources("projects").verbs("own").
+		addRule().apiGroups("cis.f5.com").resources("virtualservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("transportservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("tlsprofiles").verbs("*").
 		setRoleTemplateNames("admin")
 
 	rb.addRoleTemplate("Project Member", "project-member", "project", false, false, false).
@@ -260,6 +271,9 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("virtualservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("transportservers").verbs("*").
+		addRule().apiGroups("cis.f5.com").resources("tlsprofiles").verbs("*").
 		setRoleTemplateNames("edit")
 
 	rb.addRoleTemplate("Read-only", "read-only", "project", false, false, false).
@@ -290,6 +304,9 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlansubnets").verbs("get", "list", "watch").
 		addRule().apiGroups("macvlan.cluster.cattle.io").resources("macvlanips").verbs("get", "list", "watch").
 		addRule().apiGroups("security.istio.io").resources("authorizationpolicies").verbs("get", "list", "watch").
+		addRule().apiGroups("cis.f5.com").resources("virtualservers").verbs("get", "list", "watch").
+		addRule().apiGroups("cis.f5.com").resources("transportservers").verbs("get", "list", "watch").
+		addRule().apiGroups("cis.f5.com").resources("tlsprofiles").verbs("get", "list", "watch").
 		setRoleTemplateNames("view")
 
 	rb.addRoleTemplate("Create Namespaces", "create-ns", "project", false, false, false).

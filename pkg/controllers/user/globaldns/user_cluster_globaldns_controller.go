@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/rancher/rancher/pkg/namespace"
+	f5v1 "github.com/rancher/types/apis/cis.f5.com/v1"
 	v1coreRancher "github.com/rancher/types/apis/core/v1"
 	v1beta1Rancher "github.com/rancher/types/apis/extensions/v1beta1"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -16,12 +17,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	isF5GlobalDNSAnnotation   = "f5.cattle.io/globaldns"
+	f5VirtualServerAnnotation = "f5.cattle.io/virtualserver"
+)
+
 type UserGlobalDNSController struct {
 	ingressLister         v1beta1Rancher.IngressLister
 	globalDNSs            v3.GlobalDNSInterface
 	multiclusterappLister v3.MultiClusterAppLister
 	namespaceLister       v1coreRancher.NamespaceLister
 	clusterName           string
+	virtualServerLister   f5v1.VirtualServerLister
 }
 
 func newUserGlobalDNSController(clusterContext *config.UserContext) *UserGlobalDNSController {
@@ -31,6 +38,7 @@ func newUserGlobalDNSController(clusterContext *config.UserContext) *UserGlobalD
 		multiclusterappLister: clusterContext.Management.Management.MultiClusterApps("").Controller().Lister(),
 		namespaceLister:       clusterContext.Core.Namespaces("").Controller().Lister(),
 		clusterName:           clusterContext.ClusterName,
+		virtualServerLister:   clusterContext.F5CIS.VirtualServers("").Controller().Lister(),
 	}
 	return &g
 }
@@ -44,18 +52,37 @@ func (g *UserGlobalDNSController) sync(key string, obj *v3.GlobalDNS) (runtime.O
 	var targetEndpoints []string
 	var err error
 
+	isF5 := obj.Annotations[isF5GlobalDNSAnnotation]
+	var vsInfo []VirtualServerInfo
 	if obj.Spec.MultiClusterAppName != "" {
-		targetEndpoints, err = g.reconcileMultiClusterApp(obj)
+		if isF5 == "true" {
+			targetEndpoints, vsInfo, err = g.reconcileMultiClusterAppF5(obj)
+		} else {
+			targetEndpoints, err = g.reconcileMultiClusterApp(obj)
+		}
 	} else if len(obj.Spec.ProjectNames) > 0 {
-		targetEndpoints, err = g.reconcileProjects(obj)
+		if isF5 == "true" {
+			targetEndpoints, vsInfo, err = g.reconcileProjectsF5(obj)
+		} else {
+			targetEndpoints, err = g.reconcileProjects(obj)
+		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
+	var vsInfoStr string
+	if isF5 == "true" {
+		vsAnno := obj.Annotations[f5VirtualServerAnnotation]
+		vsInfoStr, err = g.getVirtualServerInfos(vsInfo, vsAnno)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	//compare with the clusterEndpoints and find endpoints to update and remove.
-	return g.refreshGlobalDNSEndpoints(obj, targetEndpoints)
+	return g.refreshGlobalDNSEndpoints(obj, targetEndpoints, vsInfoStr)
 }
 
 func (g *UserGlobalDNSController) reconcileMultiClusterApp(obj *v3.GlobalDNS) ([]string, error) {
@@ -160,7 +187,7 @@ func (g *UserGlobalDNSController) fetchGlobalDNSEndpointsForIngresses(ingresses 
 	return allEndpoints, nil
 }
 
-func (g *UserGlobalDNSController) refreshGlobalDNSEndpoints(globalDNS *v3.GlobalDNS, ingressEndpointsForCluster []string) (*v3.GlobalDNS, error) {
+func (g *UserGlobalDNSController) refreshGlobalDNSEndpoints(globalDNS *v3.GlobalDNS, ingressEndpointsForCluster []string, virtualServerAnnotation string) (*v3.GlobalDNS, error) {
 
 	globalDNSToUpdate := globalDNS.DeepCopy()
 	uniqueEndpointsForCluster := dedupEndpoints(ingressEndpointsForCluster)
@@ -172,6 +199,7 @@ func (g *UserGlobalDNSController) refreshGlobalDNSEndpoints(globalDNS *v3.Global
 	clusterEps := globalDNSToUpdate.Status.ClusterEndpoints[g.clusterName]
 	if ifEndpointsDiffer(clusterEps, uniqueEndpointsForCluster) {
 		globalDNSToUpdate.Status.ClusterEndpoints[g.clusterName] = uniqueEndpointsForCluster
+		globalDNSToUpdate.Annotations[f5VirtualServerAnnotation] = virtualServerAnnotation
 		reconcileGlobalDNSEndpoints(globalDNSToUpdate)
 
 		updated, err := g.globalDNSs.Update(globalDNSToUpdate)
