@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
@@ -11,6 +12,11 @@ import (
 	"github.com/rancher/rancher/pkg/f5cis"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var (
+	bigipPasswordAnswer = "bigip.password"
+	password            = regexp.MustCompile("password:(.+)")
 )
 
 func (a ActionHandler) viewF5CIS(actionName string, action *types.Action, apiContext *types.APIContext) error {
@@ -28,6 +34,14 @@ func (a ActionHandler) viewF5CIS(actionName string, action *types.Action, apiCon
 
 	// need to support `map[string]string` as entry value type in norman Builder.convertMap
 	answers, valuesYaml, extraAnswers, version := f5cis.GetF5CISAppAnswersAndVersion(cluster.Annotations)
+
+	if _, ok := answers[bigipPasswordAnswer]; ok {
+		answers["bigip.password"] = ""
+	}
+	if len(valuesYaml) > 0 {
+		valuesYaml = password.ReplaceAllString(valuesYaml, "password: \"\"")
+	}
+
 	encodeAnswers, err := convert.EncodeToMap(answers)
 	if err != nil {
 		return httperror.WrapAPIError(err, httperror.ServerError, "failed to parse response")
