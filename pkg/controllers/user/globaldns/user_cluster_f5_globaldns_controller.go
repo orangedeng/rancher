@@ -116,7 +116,11 @@ func (g *UserGlobalDNSController) fetchGlobalDNSEndpointsForF5(virtualServers []
 			}
 			vsInfo := VirtualServerInfo{}
 			vsInfo.Name = vs.Spec.VirtualServerName
-			vsInfo.Destination = fmt.Sprintf("%s:%s", vs.Spec.VirtualServerAddress, strconv.Itoa((int)(vs.Spec.VirtualServerHTTPPort)))
+			vsPort := strconv.Itoa((int)(vs.Spec.VirtualServerHTTPPort))
+			if vs.Spec.TLSProfileName != "" {
+				vsPort = strconv.Itoa((int)(vs.Spec.VirtualServerHTTPSPort))
+			}
+			vsInfo.Destination = fmt.Sprintf("%s:%s", vs.Spec.VirtualServerAddress, vsPort)
 			vsInfos = append(vsInfos, vsInfo)
 			vsep := vs.Spec.VirtualServerAddress
 			allEndpoints = append(allEndpoints, vsep)

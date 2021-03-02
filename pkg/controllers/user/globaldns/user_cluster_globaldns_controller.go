@@ -197,7 +197,8 @@ func (g *UserGlobalDNSController) refreshGlobalDNSEndpoints(globalDNS *v3.Global
 	}
 
 	clusterEps := globalDNSToUpdate.Status.ClusterEndpoints[g.clusterName]
-	if ifEndpointsDiffer(clusterEps, uniqueEndpointsForCluster) {
+	clusterVs := globalDNSToUpdate.Annotations[f5VirtualServerAnnotation]
+	if ifEndpointsDiffer(clusterEps, uniqueEndpointsForCluster) || ifVirtualServerDiffer(clusterVs, virtualServerAnnotation) {
 		globalDNSToUpdate.Status.ClusterEndpoints[g.clusterName] = uniqueEndpointsForCluster
 		globalDNSToUpdate.Annotations[f5VirtualServerAnnotation] = virtualServerAnnotation
 		reconcileGlobalDNSEndpoints(globalDNSToUpdate)

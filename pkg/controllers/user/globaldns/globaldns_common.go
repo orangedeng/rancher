@@ -1,7 +1,9 @@
 package globaldns
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
@@ -44,6 +46,44 @@ func ifEndpointsDiffer(endpointsOne []string, endpointsTwo []string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func ifVirtualServerDiffer(vsOne string, vsTwo string) bool {
+	vsObjectOne := map[string][]VirtualServerInfo{}
+	vsObjectTwo := map[string][]VirtualServerInfo{}
+	if vsOne != "" {
+		err := json.Unmarshal(([]byte)(vsOne), &vsObjectOne)
+		if err != nil {
+			return false
+		}
+	}
+	if vsTwo != "" {
+		err := json.Unmarshal(([]byte)(vsTwo), &vsObjectTwo)
+		if err != nil {
+			return false
+		}
+	}
+	for k, v := range vsObjectOne {
+		if _, ok := vsObjectTwo[k]; ok {
+			if len(v) != len(vsObjectTwo[k]) {
+				return true
+			}
+			for _, vsTwo := range vsObjectTwo[k] {
+				for i, vsOne := range v {
+					if reflect.DeepEqual(vsOne, vsTwo) {
+						break
+					}
+					if i+1 == len(v) && !reflect.DeepEqual(vsOne, vsTwo) {
+						return true
+					}
+				}
+			}
+		} else {
+			return true
+		}
+	}
+
 	return false
 }
 
