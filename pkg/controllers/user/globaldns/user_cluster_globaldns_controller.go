@@ -29,6 +29,7 @@ type UserGlobalDNSController struct {
 	namespaceLister       v1coreRancher.NamespaceLister
 	clusterName           string
 	virtualServerLister   f5v1.VirtualServerLister
+	transportServerLister f5v1.TransportServerLister
 }
 
 func newUserGlobalDNSController(clusterContext *config.UserContext) *UserGlobalDNSController {
@@ -39,6 +40,7 @@ func newUserGlobalDNSController(clusterContext *config.UserContext) *UserGlobalD
 		namespaceLister:       clusterContext.Core.Namespaces("").Controller().Lister(),
 		clusterName:           clusterContext.ClusterName,
 		virtualServerLister:   clusterContext.F5CIS.VirtualServers("").Controller().Lister(),
+		transportServerLister: clusterContext.F5CIS.TransportServers("").Controller().Lister(),
 	}
 	return &g
 }

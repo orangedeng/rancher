@@ -36,7 +36,7 @@ func (g *UserGlobalDNSController) reconcileMultiClusterAppF5(obj *v3.GlobalDNS) 
 		return nil, nil, fmt.Errorf("UserGlobalDNSController: Error %v Listing MulticlusterApp by name %v", err, mcappName)
 	}
 
-	// go through target projects which are part of the current cluster and find all ingresses
+	// go through target projects which are part of the current cluster and find all virtualservers
 	var allVirtualServers []*f5cisv1.VirtualServer
 
 	for _, t := range mcapp.Spec.Targets {
@@ -57,13 +57,36 @@ func (g *UserGlobalDNSController) reconcileMultiClusterAppF5(obj *v3.GlobalDNS) 
 		allVirtualServers = append(allVirtualServers, virtualservers...)
 	}
 
+	// go through target projects which are part of the current cluster and find all transportservers
+	var allTransportServers []*f5cisv1.TransportServer
+
+	for _, t := range mcapp.Spec.Targets {
+		split := strings.SplitN(t.ProjectName, ":", 2)
+		if len(split) != 2 {
+			return nil, nil, fmt.Errorf("error in splitting project ID %v", t.ProjectName)
+		}
+		// check if the target project in this iteration is same as the cluster in current context
+		if split[0] != g.clusterName {
+			continue
+		}
+
+		// each target will have appName, this appName is also the namespace in which all workloads for this app are created
+		transportservers, err := g.transportServerLister.List(t.AppName, labels.NewSelector())
+		if err != nil {
+			return nil, nil, err
+		}
+		allTransportServers = append(allTransportServers, transportservers...)
+	}
+
 	//gather endpoints
-	return g.fetchGlobalDNSEndpointsForF5(allVirtualServers, obj)
+	return g.fetchGlobalDNSEndpointsForF5(allVirtualServers, allTransportServers, obj)
 }
 
 func (g *UserGlobalDNSController) reconcileProjectsF5(obj *v3.GlobalDNS) ([]string, []VirtualServerInfo, error) {
-	// go through target projects which are part of the current cluster and find all ingresses
+	// go through target projects which are part of the current cluster and find all virtualservers and transportservers
 	var allVirtualServers []*f5cisv1.VirtualServer
+
+	var allTransportServers []*f5cisv1.TransportServer
 
 	allNamespaces, err := g.namespaceLister.List("", labels.NewSelector())
 	if err != nil {
@@ -94,20 +117,27 @@ func (g *UserGlobalDNSController) reconcileProjectsF5(obj *v3.GlobalDNS) ([]stri
 				return nil, nil, err
 			}
 			allVirtualServers = append(allVirtualServers, virtualservers...)
+
+			transportservers, err := g.transportServerLister.List(namespace, labels.NewSelector())
+			if err != nil {
+				return nil, nil, err
+			}
+
+			allTransportServers = append(allTransportServers, transportservers...)
 		}
 	}
 	//gather endpoints
-	return g.fetchGlobalDNSEndpointsForF5(allVirtualServers, obj)
+	return g.fetchGlobalDNSEndpointsForF5(allVirtualServers, allTransportServers, obj)
 }
 
-func (g *UserGlobalDNSController) fetchGlobalDNSEndpointsForF5(virtualServers []*f5cisv1.VirtualServer, obj *v3.GlobalDNS) ([]string, []VirtualServerInfo, error) {
+func (g *UserGlobalDNSController) fetchGlobalDNSEndpointsForF5(virtualServers []*f5cisv1.VirtualServer, transportServers []*f5cisv1.TransportServer, obj *v3.GlobalDNS) ([]string, []VirtualServerInfo, error) {
 	if len(virtualServers) == 0 {
 		return nil, nil, nil
 	}
 
 	var vsInfos []VirtualServerInfo
 	var allEndpoints []string
-	//gather endpoints from all ingresses
+	//gather endpoints from all virtualservers
 	for _, vs := range virtualServers {
 		if gdns, ok := vs.Annotations[annotationGlobalDNS]; ok {
 			// check if the globalDNS in annotation is same as the FQDN set on the GlobalDNS
@@ -126,6 +156,22 @@ func (g *UserGlobalDNSController) fetchGlobalDNSEndpointsForF5(virtualServers []
 			allEndpoints = append(allEndpoints, vsep)
 		}
 	}
+
+	//gather endpoints from all transportservers
+	for _, ts := range transportServers {
+		if gdns, ok := ts.Annotations[annotationGlobalDNS]; ok {
+			// check if the globalDNS in annotation is same as the FQDN set on the GlobalDNS
+			if gdns != obj.Spec.FQDN {
+				continue
+			}
+			vsInfo := VirtualServerInfo{}
+			vsInfo.Name = ts.Spec.VirtualServerName
+			vsInfo.Destination = fmt.Sprintf("%s:%s", ts.Spec.VirtualServerAddress, strconv.Itoa((int)(ts.Spec.VirtualServerPort)))
+			vsInfos = append(vsInfos, vsInfo)
+			vsep := ts.Spec.VirtualServerAddress
+			allEndpoints = append(allEndpoints, vsep)
+		}
+	}
 	return allEndpoints, vsInfos, nil
 }
 
@@ -141,30 +187,10 @@ func (g *UserGlobalDNSController) getVirtualServerInfos(vsInfos []VirtualServerI
 
 	existedInfos[g.clusterName] = vsInfos
 
-	// infos := existedInfos[g.clusterName]
-	// for _, info := range vsInfos {
-	// 	if hasVirtualServerInfo(existedInfos, info.Name, info.Destination) {
-	// 		continue
-	// 	}
-	// 	existedInfos = append(existedInfos, info)
-	// }
-
 	infoBytes, err := json.Marshal(existedInfos)
 	if err != nil {
 		return "", nil
 	}
 	return (string)(infoBytes), nil
-
-}
-
-func hasVirtualServerInfo(vsInfos []VirtualServerInfo, name string, destination string) bool {
-	for _, info := range vsInfos {
-		if info.Name == name && info.Destination == destination {
-			return true
-		} else if (info.Name == "" || name == "") && info.Destination == destination {
-			return true
-		}
-	}
-	return false
 
 }

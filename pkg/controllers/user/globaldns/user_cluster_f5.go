@@ -35,10 +35,15 @@ func newUserF5Controller(ctx context.Context, clusterContext *config.UserContext
 
 func RegisterF5(ctx context.Context, clusterContext *config.UserContext) {
 	n := newUserF5Controller(ctx, clusterContext)
-	clusterContext.F5CIS.VirtualServers("").AddHandler(ctx, UserIngressControllerName, n.sync)
+	clusterContext.F5CIS.VirtualServers("").AddHandler(ctx, UserIngressControllerName, n.syncVirtualServer)
+	clusterContext.F5CIS.TransportServers("").AddHandler(ctx, UserIngressControllerName, n.syncTransportServer)
 }
 
-func (ic *UserF5Controller) sync(key string, obj *f5cisv1.VirtualServer) (runtime.Object, error) {
+func (ic *UserF5Controller) syncVirtualServer(key string, obj *f5cisv1.VirtualServer) (runtime.Object, error) {
+	return ic.reconcileAllGlobalDNSs()
+}
+
+func (ic *UserF5Controller) syncTransportServer(key string, obj *f5cisv1.TransportServer) (runtime.Object, error) {
 	return ic.reconcileAllGlobalDNSs()
 }
 
