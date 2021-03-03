@@ -58,7 +58,7 @@ func (p *Store) Create(apiContext *types.APIContext, schema *types.Schema, data 
 		return nil, err
 	}
 
-	tsAddress := convert.ToString(data[projectv3.TransportServerFieldVirtualServerPort])
+	tsAddress := convert.ToString(data[projectv3.TransportServerFieldVirtualServerAddress])
 
 	tsPort, err := convert.ToNumber(data[projectv3.TransportServerFieldVirtualServerPort])
 	if err != nil {
@@ -148,7 +148,7 @@ func canUseAddressAndPort(apiContext *types.APIContext, address string, port int
 		types.NewConditionFromString(projectv3.VirtualServerFieldVirtualServerAddress, types.ModifierEQ, []string{address}...),
 	}
 
-	if err := access.List(apiContext, apiContext.Version, projectv3.VirtualServerType, &types.QueryOptions{Conditions: conditions}, &tslist); err != nil {
+	if err := access.List(apiContext, apiContext.Version, projectv3.TransportServerType, &types.QueryOptions{Conditions: conditions}, &tslist); err != nil {
 		return err
 	}
 
