@@ -27,15 +27,17 @@ func Wrap(store types.Store, context *config.ScaledContext) types.Store {
 	modify := &Store{
 		Store: store,
 	}
-	modify.mu = sync.Mutex{}
+	modify.checkNameLock = sync.Mutex{}
+	modify.checkAddressLock = sync.Mutex{}
 	modify.clusters = context.Management.Clusters("")
 	return modify
 }
 
 type Store struct {
 	types.Store
-	mu       sync.Mutex
-	clusters managementv3.ClusterInterface
+	checkNameLock    sync.Mutex
+	checkAddressLock sync.Mutex
+	clusters         managementv3.ClusterInterface
 }
 
 func (p *Store) Create(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}) (map[string]interface{}, error) {
@@ -90,8 +92,8 @@ func (p *Store) Update(apiContext *types.APIContext, schema *types.Schema, data 
 	vsName := convert.ToString(existingVS[projectv3.VirtualServerFieldVirtualServerName])
 
 	if !strings.EqualFold(updatedVSName, vsName) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
+		p.checkNameLock.Lock()
+		defer p.checkNameLock.Unlock()
 
 		if err := canUseVirtualServerName(apiContext, updatedVSName); err != nil {
 			return nil, err
@@ -123,8 +125,8 @@ func (p *Store) Update(apiContext *types.APIContext, schema *types.Schema, data 
 	if !strings.EqualFold(updatedVSAddress, vsAddress) ||
 		(updatedVSHTTPPort != vsHTTPPort) ||
 		(updatedVSHTTPSPort != vsHTTPSPort) {
-		p.mu.Lock()
-		defer p.mu.Unlock()
+		p.checkAddressLock.Lock()
+		defer p.checkAddressLock.Unlock()
 
 		if err := canUseAddressAndPort(apiContext, updatedVSAddress, updatedVSHTTPPort, updatedVSHTTPSPort); err != nil {
 			return nil, err
