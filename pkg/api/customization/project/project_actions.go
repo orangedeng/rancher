@@ -23,7 +23,17 @@ import (
 	"github.com/rancher/types/user"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+)
+
+var (
+	retryBackOff = wait.Backoff{
+		Duration: time.Millisecond * 1000,
+		Factor:   1,
+		Jitter:   0.1,
+		Steps:    6,
+	} // PANDARIA: retryBackOff about 5s backoff
 )
 
 func Formatter(apiContext *types.APIContext, resource *types.RawResource) {
@@ -142,7 +152,7 @@ func (h *Handler) setPodSecurityPolicyTemplate(actionName string, action *types.
 	}
 
 	var project *v3.Project
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	retryErr := retry.RetryOnConflict(retryBackOff, func() error {
 		project, err = h.updateProjectPSPTID(request, podSecurityPolicyTemplateName)
 		if err != nil {
 			logrus.Warnf("error retry updating PSPT ID, will try later: %v", err)
