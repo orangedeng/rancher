@@ -85,6 +85,17 @@ func Register(ctx context.Context, agentContext *config.UserContext) {
 		app:                 ah,
 	}
 	cattleProjectsClient.Controller().AddClusterScopedHandler(ctx, "project-monitoring-handler", clusterName, ph.sync)
+
+	// namespace handler
+	nsh := &namespaceHandler{
+		clusterName:          clusterName,
+		cattleProjectClient:  cattleProjectsClient,
+		agentNamespaceClient: agentContext.Core.Namespaces(metav1.NamespaceAll),
+	}
+
+	agentContext.Core.Namespaces(metav1.NamespaceAll).AddHandler(ctx, "namespace-monitoring-handler", nsh.syncNamespace)
+	cattleProjectsClient.Controller().AddClusterScopedHandler(ctx, "namespace-projectname-monitoring-handler", clusterName, nsh.sync)
+
 }
 
 func RegisterAgent(ctx context.Context, agentContext *config.UserOnlyContext) {
