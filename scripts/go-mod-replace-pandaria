@@ -23,7 +23,7 @@ github.com/rancher/prometheus-auth/pkg/prom=github.com/cnrancher/prometheus-auth
 github.com/prometheus/prometheus=github.com/prometheus/prometheus@v0.0.0-20200626085723-c448ada63d83
 github.com/satori/go.uuid=github.com/satori/go.uuid@v1.2.0
 github.com/segmentio/kafka-go=github.com/segmentio/kafka-go@v0.0.0-20190411192201-218fd49cff39
-github.com/rancher/norman=github.com/cnrancher/pandaria-norman@v0.0.0-20201109020557-c821f2673c25
+github.com/rancher/norman=github.com/cnrancher/pandaria-norman@v0.0.0-20210315110740-ca8de0c09a03
 "
 
 # https://golang.org/cmd/go/#hdr-Edit_go_mod_from_tools_or_scripts
