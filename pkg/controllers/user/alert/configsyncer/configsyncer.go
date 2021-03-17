@@ -626,14 +626,21 @@ func (d *ConfigSyncer) addRecipients(notifiers []*v3.Notifier, receiver *alertco
 					webhook.URL = r.Recipient
 				}
 
-				if notifierutil.IsHTTPClientConfigSet(notifier.Spec.WebhookConfig.HTTPClientConfig) {
-					url, err := toAlertManagerURL(notifier.Spec.WebhookConfig.HTTPClientConfig.ProxyURL)
-					if err != nil {
-						logrus.Errorf("Failed to parse webhook proxy url %s, %v", notifier.Spec.WebhookConfig.HTTPClientConfig.ProxyURL, err)
-						continue
+				if notifier.Spec.WebhookConfig.HTTPClientConfig != nil {
+					// PANDARIA: support webhook bearer token
+					webhook.HTTPConfig = &alertconfig.HTTPClientConfig{}
+
+					if notifier.Spec.WebhookConfig.HTTPClientConfig.ProxyURL != "" {
+						url, err := toAlertManagerURL(notifier.Spec.WebhookConfig.HTTPClientConfig.ProxyURL)
+						if err != nil {
+							logrus.Errorf("Failed to parse webhook proxy url %s, %v", notifier.Spec.WebhookConfig.HTTPClientConfig.ProxyURL, err)
+							continue
+						}
+						webhook.HTTPConfig.ProxyURL = *url
 					}
-					webhook.HTTPConfig = &alertconfig.HTTPClientConfig{
-						ProxyURL: *url,
+
+					if notifier.Spec.WebhookConfig.HTTPClientConfig.BearerToken != "" {
+						webhook.HTTPConfig.BearerToken = alertconfig.Secret(notifier.Spec.WebhookConfig.HTTPClientConfig.BearerToken)
 					}
 				}
 
@@ -684,6 +691,43 @@ func (d *ConfigSyncer) addRecipients(notifiers []*v3.Notifier, receiver *alertco
 					email.To = r.Recipient
 				}
 				receiver.EmailConfigs = append(receiver.EmailConfigs, email)
+				receiverExist = true
+			} else if notifier.Spec.ServiceNowConfig != nil { // PANDARIA: support service now
+				webhook := &alertconfig.WebhookConfig{
+					NotifierConfig: commonNotifierConfig,
+					URL:            notifier.Spec.ServiceNowConfig.URL,
+				}
+				if r.Recipient != "" {
+					webhook.URL = r.Recipient
+				}
+
+				if notifier.Spec.ServiceNowConfig.HTTPClientConfig != nil {
+					webhook.HTTPConfig = &alertconfig.HTTPClientConfig{}
+
+					if notifier.Spec.ServiceNowConfig.HTTPClientConfig.ProxyURL != "" {
+						url, err := toAlertManagerURL(notifier.Spec.ServiceNowConfig.HTTPClientConfig.ProxyURL)
+						if err != nil {
+							logrus.Errorf("Failed to parse webhook proxy url %s, %v", notifier.Spec.ServiceNowConfig.HTTPClientConfig.ProxyURL, err)
+							continue
+						}
+						webhook.HTTPConfig.ProxyURL = *url
+					}
+
+					if notifier.Spec.ServiceNowConfig.HTTPClientConfig.BasicAuth != nil {
+						username := notifier.Spec.ServiceNowConfig.HTTPClientConfig.BasicAuth.Username
+						password := notifier.Spec.ServiceNowConfig.HTTPClientConfig.BasicAuth.Password
+						if username != "" && password != "" {
+							webhook.HTTPConfig.BasicAuth = &alertconfig.BasicAuth{
+								Username: username,
+								Password: alertconfig.Secret(password),
+							}
+						} else if (username == "" && password != "") || (username != "" && password == "") {
+							logrus.Errorf("Invalid servicenow config,username and password should both be empty or filled")
+							continue
+						}
+					}
+				}
+				receiver.WebhookConfigs = append(receiver.WebhookConfigs, webhook)
 				receiverExist = true
 			}
 

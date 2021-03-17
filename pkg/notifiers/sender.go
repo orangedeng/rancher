@@ -78,6 +78,11 @@ func SendMessage(notifier *v3.Notifier, recipient string, msg *Message, dialer d
 			notifier.Spec.WechatConfig.APIURL, recipient, msg.Content, notifier.Spec.WechatConfig.HTTPClientConfig, dialer)
 	}
 
+	// PANDARIA: Support serviceNow
+	if notifier.Spec.ServiceNowConfig != nil {
+		return TestServicenow(notifier.Spec.ServiceNowConfig.URL, msg.Content, notifier.Spec.ServiceNowConfig.HTTPClientConfig, dialer)
+	}
+
 	if notifier.Spec.WebhookConfig != nil {
 		return TestWebhook(notifier.Spec.WebhookConfig.URL, msg.Content, notifier.Spec.WebhookConfig.HTTPClientConfig, dialer)
 	}
@@ -232,6 +237,61 @@ func TestWechat(secret, agent, corp, receiverType, apiURL, receiver, msg string,
 	return nil
 }
 
+// PANDARIA: TestServicenow
+func TestServicenow(url, msg string, cfg *v3.HTTPClientConfig, dialer dialer.Dialer) error {
+	if msg == "" {
+		msg = "Servicenow setting validated"
+	}
+	alertList := model.Alerts{
+		&model.Alert{
+			Labels: map[model.LabelName]model.LabelValue{
+				model.LabelName("test_msg"): model.LabelValue(msg),
+			},
+		},
+	}
+
+	alertData, err := json.Marshal(alertList)
+	if err != nil {
+		return err
+	}
+
+	client, err := NewClientFromConfig(cfg, dialer)
+	if err != nil {
+		return err
+	}
+
+	// Pandaria: Support Basic Auth Test
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(alertData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", contentTypeJSON)
+	if cfg != nil && cfg.BasicAuth != nil {
+		username := cfg.BasicAuth.Username
+		password := cfg.BasicAuth.Password
+		if username != "" && password != "" {
+			basicAuthToken := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+			req.Header.Set("Authorization", fmt.Sprintf("Basic %s", basicAuthToken))
+		} else if (username == "" && password != "") || (username != "" && password == "") {
+			return fmt.Errorf("Invalid servicenow config,username and password should both be empty or filled")
+		}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("HTTP status code is %d, not included in the 2xx success HTTP status codes", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func TestDingtalk(url, secret, msg string, cfg *v3.HTTPClientConfig, dialer dialer.Dialer) error {
 	if msg == "" {
 		msg = "Dingtalk setting validated"
@@ -369,10 +429,22 @@ func TestWebhook(url, msg string, cfg *v3.HTTPClientConfig, dialer dialer.Dialer
 		return err
 	}
 
-	resp, err := post(client, url, contentTypeJSON, bytes.NewBuffer(alertData))
+	// Pandaria: Support Bearer Token Test
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(alertData))
 	if err != nil {
 		return err
 	}
+
+	req.Header.Set("Content-Type", contentTypeJSON)
+	if cfg != nil && cfg.BearerToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", cfg.BearerToken))
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
