@@ -82,6 +82,11 @@ func GrbCRBName(grb *v3.GlobalRoleBinding) string {
 	return "globaladmin-" + GetGRBTargetKey(grb)
 }
 
+// GrbCRBReadonlyName return global read only crb name (add for PANDARIA)
+func GrbCRBReadonlyName(grb *v3.GlobalRoleBinding) string {
+	return "globalreadonly-" + GetGRBTargetKey(grb)
+}
+
 // GetGRBSubject creates and returns a subject that is
 // determined by inspecting the the GRB's target fields
 func GetGRBSubject(grb *v3.GlobalRoleBinding) rbacv1.Subject {

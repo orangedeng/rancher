@@ -30,6 +30,9 @@ func newGlobalRoleBindingHandler(workload *config.UserContext) v3.GlobalRoleBind
 		clusterRoleBindings: workload.RBAC.ClusterRoleBindings(""),
 		crbLister:           workload.RBAC.ClusterRoleBindings("").Controller().Lister(),
 		grLister:            workload.Management.Management.GlobalRoles("").Controller().Lister(),
+		clusterName:         workload.ClusterName,                                 // PANDARIA
+		crLister:            workload.RBAC.ClusterRoles("").Controller().Lister(), // PANDARIA
+		crClient:            workload.RBAC.ClusterRoles(""),                       // PANDARIA
 	}
 
 	return h.sync
@@ -42,6 +45,9 @@ type grbHandler struct {
 	crbLister           rbacv1.ClusterRoleBindingLister
 	grLister            v3.GlobalRoleLister
 	grbIndexer          cache.Indexer
+	clusterName         string                      // PANDARIA
+	crLister            rbacv1.ClusterRoleLister    // PANDARIA
+	crClient            rbacv1.ClusterRoleInterface // PANDARIA
 }
 
 func (c *grbHandler) sync(key string, obj *v3.GlobalRoleBinding) (runtime.Object, error) {
@@ -52,9 +58,20 @@ func (c *grbHandler) sync(key string, obj *v3.GlobalRoleBinding) (runtime.Object
 	isAdmin, err := c.isAdminRole(obj.GlobalRoleName)
 	if err != nil {
 		return nil, err
-	} else if !isAdmin {
+	}
+	// PANDARIA
+	isReadonly, err := c.isReadonlyRole(obj.GlobalRoleName)
+	if err != nil {
+		return nil, err
+	}
+	if !isAdmin && !isReadonly {
 		return obj, nil
 	}
+
+	if isReadonly {
+		return c.syncReadonlyRole(obj)
+	}
+	// PANDARIA: end
 
 	logrus.Debugf("%v is an admin role", obj.GlobalRoleName)
 
