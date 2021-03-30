@@ -275,7 +275,8 @@ func checkReceiver(r *Route, receivers map[string]struct{}) error {
 var DefaultGlobalConfig = GlobalConfig{
 	ResolveTimeout: model.Duration(5 * time.Minute),
 
-	SMTPRequireTLS:  true,
+	SMTPRequireTLS:  false,
+	SlackAPIURL:     "https://api.slack.com",
 	PagerdutyURL:    "https://events.pagerduty.com/v2/enqueue",
 	WechatURL:       "https://qyapi.weixin.qq.com/cgi-bin/",
 	HipchatURL:      "https://api.hipchat.com/",

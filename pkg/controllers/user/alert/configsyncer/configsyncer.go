@@ -37,7 +37,8 @@ import (
 )
 
 const (
-	projectIDKey = "field.cattle.io/projectId"
+	projectIDKey             = "field.cattle.io/projectId"
+	alertConfigAnnotationKey = "field.cattle.io/alertConfig"
 )
 
 var (
@@ -130,6 +131,10 @@ func (d *ConfigSyncer) NotifierSync(key string, alert *v3.Notifier) (runtime.Obj
 }
 
 func (d *ConfigSyncer) NotificationTemplateSync(key string, notificationTemplate *v3.NotificationTemplate) (runtime.Object, error) {
+	return nil, d.sync()
+}
+
+func (d *ConfigSyncer) ClusterSync(key string, cluster *v3.Cluster) (runtime.Object, error) {
 	return nil, d.sync()
 }
 
@@ -238,6 +243,15 @@ func (d *ConfigSyncer) sync() error {
 
 	config := manager.GetAlertManagerDefaultConfig()
 	config.Global.PagerdutyURL = "https://events.pagerduty.com/v2/enqueue"
+
+	cluster, err := d.clusterLister.Get("", d.clusterName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get cluster %s", d.clusterName)
+	}
+
+	if err := overwriteAlertConfig(cluster.Annotations, config); err != nil {
+		logrus.Errorf("failed to overwrite alertConfig, %v", err)
+	}
 
 	if err = d.addClusterAlert2Config(config, cAlertsMap, cAlertsKey, cAlertGroupsMap, notifiers); err != nil {
 		return err
@@ -925,4 +939,15 @@ func GetProjectNamespace(nsLister v1.NamespaceLister) (map[string]data.Set, erro
 	}
 
 	return projectNsSet, nil
+}
+
+func overwriteAlertConfig(annotations map[string]string, config *alertconfig.Config) error {
+	alertConfig := annotations[alertConfigAnnotationKey]
+	if len(alertConfig) > 0 {
+		if err := yaml.Unmarshal([]byte(alertConfig), config); err != nil {
+			return errors.Wrap(err, "failed to unmarshall alertConfig")
+		}
+	}
+
+	return nil
 }

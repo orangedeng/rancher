@@ -45,6 +45,7 @@ func Register(ctx context.Context, cluster *config.UserContext) {
 
 	notifiers := cluster.Management.Management.Notifiers(cluster.ClusterName)
 	notificationTemplates := cluster.Management.Management.NotificationTemplates(cluster.ClusterName)
+	clusters := cluster.Management.Management.Clusters(metav1.NamespaceAll)
 
 	deploy := deployer.NewDeployer(cluster, alertmanager)
 	clusterAlertGroups.AddClusterScopedHandler(ctx, "cluster-alert-group-deployer", cluster.ClusterName, deploy.ClusterGroupSync)
@@ -61,6 +62,7 @@ func Register(ctx context.Context, cluster *config.UserContext) {
 	projectAlertRules.AddClusterScopedHandler(ctx, "project-alert-rule-controller", cluster.ClusterName, configSyncer.ProjectRuleSync)
 	notifiers.AddClusterScopedHandler(ctx, "notifier-config-syncer", cluster.ClusterName, configSyncer.NotifierSync)
 	notificationTemplates.AddClusterScopedHandler(ctx, "notification-template-controller", cluster.ClusterName, configSyncer.NotificationTemplateSync)
+	clusters.AddHandler(ctx, "alert-cluster-controller", configSyncer.ClusterSync)
 
 	cleaner := &alertGroupCleaner{
 		clusterName:        cluster.ClusterName,
