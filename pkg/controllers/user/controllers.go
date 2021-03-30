@@ -97,6 +97,7 @@ func Register(ctx context.Context, cluster *config.UserContext, clusterRec *mana
 
 	// Pandaria
 	harbor.Register(ctx, cluster)
+	nsserviceaccount.RegisterPanda(ctx, cluster)
 
 	if clusterRec.Spec.LocalClusterAuthEndpoint.Enabled {
 		err := clusterauthtoken.CRDSetup(ctx, cluster.UserOnlyContext())
