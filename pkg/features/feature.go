@@ -37,11 +37,6 @@ var (
 		"Use new experimental proxy for Kubernetes API requests.",
 		false,
 		true)
-	ProjectMonitoringServiceUI = newFeature(
-		"project-monitoring-service-ui",
-		"Expose enable project monitoring UI and allow user to use monitoring with project level.",
-		true,
-		true) // PANDARIA
 	ProjectPipelineServiceUI = newFeature(
 		"project-pipeline-service-ui",
 		"Expose enable project pipeline UI and allow user to use pipeline with project level.",
