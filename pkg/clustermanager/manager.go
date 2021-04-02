@@ -37,6 +37,10 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
+const (
+	clusterAPIEndpointKey = "cluster.pandaria.io/apiendpoint"
+)
+
 type Manager struct {
 	httpsPort     int
 	ScaledContext *config.ScaledContext
@@ -267,7 +271,13 @@ func ToRESTConfig(cluster *v3.Cluster, context *config.ScaledContext) (*rest.Con
 		return nil, nil
 	}
 
-	u, err := url.Parse(cluster.Status.APIEndpoint)
+	apiEndpoint := cluster.Status.APIEndpoint
+	if cluster.Annotations != nil {
+		if overrideAPIEndpoint, ok := cluster.Annotations[clusterAPIEndpointKey]; ok {
+			apiEndpoint = overrideAPIEndpoint
+		}
+	}
+	u, err := url.Parse(apiEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +308,7 @@ func ToRESTConfig(cluster *v3.Cluster, context *config.ScaledContext) (*rest.Con
 		TLSClientConfig: rest.TLSClientConfig{
 			CAData: append(caBytes, suffix...),
 		},
-		Timeout:     45 * time.Second,
+		Timeout:     getRESTTimeout(),
 		RateLimiter: ratelimit.None,
 		UserAgent:   rest.DefaultKubernetesUserAgent() + " cluster " + cluster.Name,
 		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
@@ -321,6 +331,7 @@ func ToRESTConfig(cluster *v3.Cluster, context *config.ScaledContext) (*rest.Con
 			return rt
 		},
 	}
+	logrus.Tracef("clustermanager: built the rest client [host: %s, timeout: %s] for cluster %s", rc.Host, rc.Timeout, cluster.Name)
 
 	return rc, nil
 }
@@ -541,4 +552,13 @@ func (m *Manager) KubeConfig(clusterName, token string) *clientcmdapi.Config {
 
 func (m *Manager) GetHTTPSPort() int {
 	return m.httpsPort
+}
+
+func getRESTTimeout() time.Duration {
+	d, err := time.ParseDuration(settings.MgmtUserControllersRESTTimeout.Get())
+	if err != nil {
+		defalut, _ := time.ParseDuration(settings.MgmtUserControllersRESTTimeout.Default)
+		return defalut
+	}
+	return d
 }
