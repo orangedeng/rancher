@@ -176,7 +176,7 @@ func UpdateClusterMonitoringAnswers(clusterClient mgmtv3.ClusterInterface, clust
 		}
 	}
 
-	toUpdateAnswers, toUpdateValuesYaml, toUpdateExtraAnswers, _ := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
+	toUpdateAnswers, toUpdateValuesYaml, toUpdateExtraAnswers, version := monitoring.GetOverwroteAppAnswersAndVersion(cluster.Annotations)
 
 	if !syncThanosAnswers(toUpdateAnswers, answers) {
 		return nil
@@ -186,6 +186,10 @@ func UpdateClusterMonitoringAnswers(clusterClient mgmtv3.ClusterInterface, clust
 	data["answers"] = toUpdateAnswers
 	data["valuesYaml"] = toUpdateValuesYaml
 	data["extraAnswers"] = toUpdateExtraAnswers
+	if version != "" {
+		data["version"] = version
+	}
+
 	b, err := json.Marshal(data)
 	if err != nil {
 		return err
