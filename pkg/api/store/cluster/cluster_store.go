@@ -706,7 +706,7 @@ func validateNetworkFlag(data map[string]interface{}, create bool) error {
 			}
 			return fmt.Errorf("enableNetworkPolicy should be false for non-RKE clusters")
 		}
-		if plugin != "canal" && plugin != "multus-canal-macvlan" {
+		if plugin != "canal" && plugin != "multus-canal-macvlan" && plugin != "none" {
 			return fmt.Errorf("plugin %s should have enableNetworkPolicy %v", plugin, !value)
 		}
 	}
