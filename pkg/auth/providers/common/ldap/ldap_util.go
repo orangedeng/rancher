@@ -183,7 +183,8 @@ func AuthenticateServiceAccountUser(serviceAccountPassword string, serviceAccoun
 	err := lConn.Bind(sausername, serviceAccountPassword)
 	if err != nil {
 		if ldapv2.IsErrorWithCode(err, ldapv2.LDAPResultInvalidCredentials) {
-			return httperror.WrapAPIError(err, httperror.Unauthorized, "authentication failed")
+			// PANDARIA: return failed error to user
+			return httperror.WrapAPIError(err, httperror.Unauthorized, "authentication failed with invalid credential, please check service account username and password")
 		}
 		return httperror.WrapAPIError(err, httperror.ServerError, "server error while authenticating")
 	}
@@ -200,6 +201,9 @@ func AttributesToPrincipal(entry *ldapv2.Entry, dnStr, scope, providerName, user
 		// PANDARIA: get user uid attributes
 		if userUID != "" && strings.HasSuffix(scope, "_uid") {
 			externalID = getUIDAttributeValue(entry, userUID)
+			if externalID == "" {
+				return nil, httperror.WrapAPIError(fmt.Errorf("cannot use empty value for attribute %s as unique ID value", userUID), httperror.Unauthorized, fmt.Sprintf("cannot use empty value for attribute %s as unique ID value", userUID))
+			}
 		} else {
 			externalID = dnStr
 		}
@@ -226,6 +230,9 @@ func AttributesToPrincipal(entry *ldapv2.Entry, dnStr, scope, providerName, user
 		// PANDARIA: get group uid attributes
 		if groupUID != "" && strings.HasSuffix(scope, "_uid") {
 			externalID = getUIDAttributeValue(entry, groupUID)
+			if externalID == "" {
+				externalID = dnStr
+			}
 		} else {
 			externalID = dnStr
 		}

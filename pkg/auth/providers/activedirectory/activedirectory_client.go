@@ -46,7 +46,8 @@ func (p *adProvider) loginUser(adCredential *v3public.BasicLogin, config *v3.Act
 	err = lConn.Bind(externalID, password)
 	if err != nil {
 		if ldapv2.IsErrorWithCode(err, ldapv2.LDAPResultInvalidCredentials) {
-			return v3.Principal{}, nil, httperror.WrapAPIError(err, httperror.Unauthorized, "authentication failed")
+			// PANDARIA: return failed error to user
+			return v3.Principal{}, nil, httperror.WrapAPIError(err, httperror.Unauthorized, "authentication failed with invalid credential, please check username and password")
 		}
 		return v3.Principal{}, nil, httperror.WrapAPIError(err, httperror.ServerError, "server error while authenticating")
 	}
