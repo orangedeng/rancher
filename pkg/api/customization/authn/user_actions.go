@@ -111,7 +111,7 @@ func (h *Handler) changePassword(actionName string, action *types.Action, reques
 	// Pandaria: descrypt password
 	var needDescrypt = false
 	var descryptKey string
-	if parse.IsBrowser(request.Request, false) {
+	if parse.IsBrowser(request.Request, false) && !strings.EqualFold(settings.DisablePasswordEncrypt.Get(), "true") {
 		cookie, err := request.Request.Cookie("CSRF")
 		if err == http.ErrNoCookie {
 			logrus.Error("Can not get descrypt key for user password")
@@ -204,7 +204,7 @@ func (h *Handler) setPassword(actionName string, action *types.Action, request *
 
 	var needDescrypt = false
 	var descryptKey string
-	if parse.IsBrowser(request.Request, false) {
+	if parse.IsBrowser(request.Request, false) && !strings.EqualFold(settings.DisablePasswordEncrypt.Get(), "true") {
 		cookie, err := request.Request.Cookie("CSRF")
 		if err == http.ErrNoCookie {
 			logrus.Error("Can not get descrypt key for user password")

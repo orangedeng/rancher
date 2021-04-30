@@ -93,6 +93,7 @@ var (
 	HarborVersion                     = NewSetting("harbor-version", "")                                                 // PANDARIA: harbor auth mode
 	LeaderEndpoint                    = NewSetting("leader-endpoint", "")                                                // PANDARIA: show rancher leader endpoint
 	MgmtUserControllersRESTTimeout    = NewSetting("mgmt-user-controllers-rest-timeout", "45s")                          // PANDARIA
+	DisablePasswordEncrypt            = NewSetting("disable-password-encrypt", "false")                                  // PANDARIA
 )
 
 func init() {

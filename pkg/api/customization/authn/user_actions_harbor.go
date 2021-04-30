@@ -695,7 +695,7 @@ func (h *Handler) ensureUserSyncComplete(userID, harborAuthMode, harborEmail str
 }
 
 func decryptPassword(request *types.APIContext, password string) (string, error) {
-	if parse.IsBrowser(request.Request, false) {
+	if parse.IsBrowser(request.Request, false) && !strings.EqualFold(settings.DisablePasswordEncrypt.Get(), "true") {
 		cookie, err := request.Request.Cookie("CSRF")
 		if err == http.ErrNoCookie {
 			logrus.Error("Can not get descrypt key for user password")

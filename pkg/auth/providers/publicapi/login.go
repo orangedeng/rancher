@@ -197,7 +197,7 @@ func (h *loginHandler) createLoginToken(request *types.APIContext) (v3.Token, st
 			return v3.Token{}, "", err
 		}
 		// Pandaria: descrypt password
-		if parse.IsBrowser(request.Request, false) {
+		if parse.IsBrowser(request.Request, false) && !strings.EqualFold(settings.DisablePasswordEncrypt.Get(), "true") {
 			cookie, err := request.Request.Cookie("CSRF")
 			if err == http.ErrNoCookie {
 				logrus.Error("Can not get descrypt key for user password")

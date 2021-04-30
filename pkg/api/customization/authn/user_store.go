@@ -12,6 +12,7 @@ import (
 	"github.com/rancher/norman/store/transform"
 	"github.com/rancher/norman/types"
 	"github.com/rancher/rancher/pkg/auth/util/aesutil"
+	"github.com/rancher/rancher/pkg/settings"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	client "github.com/rancher/types/client/management/v3"
 	"github.com/rancher/types/config"
@@ -111,7 +112,7 @@ func HashPasswordString(password string) (string, error) {
 
 // Pandaria: descrypt password
 func decryptUserPassword(request *types.APIContext, data map[string]interface{}) error {
-	if parse.IsBrowser(request.Request, false) {
+	if parse.IsBrowser(request.Request, false) && !strings.EqualFold(settings.DisablePasswordEncrypt.Get(), "true") {
 		cookie, err := request.Request.Cookie("CSRF")
 		if err == http.ErrNoCookie {
 			logrus.Error("Can not get descrypt key for user password")

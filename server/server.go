@@ -108,7 +108,8 @@ func Start(ctx context.Context, localClusterEnabled bool, scaledContext *config.
 	root.Handle("/v3/settings/ui-footer-url", rawAuthedAPIs).Methods(http.MethodGet)
 	root.Handle("/v3/settings/ui-banners", rawAuthedAPIs).Methods(http.MethodGet)
 	root.Handle("/v3/settings/ui-issues", rawAuthedAPIs).Methods(http.MethodGet)
-	root.Handle("/v3/settings/harbor-server-url", rawAuthedAPIs).Methods(http.MethodGet) // PANDARIA: allow get harbor-server-url setting
+	root.Handle("/v3/settings/harbor-server-url", rawAuthedAPIs).Methods(http.MethodGet)        // PANDARIA: allow get harbor-server-url setting
+	root.Handle("/v3/settings/disable-password-encrypt", rawAuthedAPIs).Methods(http.MethodGet) // PANDARIA: allow get disable-password-encrypt setting
 	root.Handle("/v3/tokenreview", tokenReview).Methods(http.MethodPost)
 	root.PathPrefix("/metrics").Handler(metricsHandler)
 	root.PathPrefix("/v3").Handler(chainGzip.Handler(auditHandler))
