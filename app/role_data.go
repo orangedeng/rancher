@@ -122,7 +122,13 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("management.cattle.io").resources("projects").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("clusters").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("principals").verbs("get", "list", "watch").
-		addRule().apiGroups("management.cattle.io").resources("users").verbs("get", "list", "watch")
+		addRule().apiGroups("management.cattle.io").resources("users").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("clusterevents").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("clusterloggings").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("clustermonitorgraphs").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("preferences").verbs("*").
+		addRule().apiGroups("management.cattle.io").resources("settings").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("features").verbs("get", "list", "watch")
 
 	// TODO user should be dynamically authorized to only see herself
 	// TODO enable when groups are "in". they need to be self-service
