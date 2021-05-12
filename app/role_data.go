@@ -123,12 +123,24 @@ func addRoles(management *config.ManagementContext) (string, error) {
 		addRule().apiGroups("management.cattle.io").resources("clusters").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("principals").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("users").verbs("get", "list", "watch").
-		addRule().apiGroups("management.cattle.io").resources("clusterevents").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("clusterloggings").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("clustermonitorgraphs").verbs("get", "list", "watch").
 		addRule().apiGroups("management.cattle.io").resources("preferences").verbs("*").
 		addRule().apiGroups("management.cattle.io").resources("settings").verbs("get", "list", "watch").
-		addRule().apiGroups("management.cattle.io").resources("features").verbs("get", "list", "watch")
+		addRule().apiGroups("management.cattle.io").resources("features").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("templates", "templateversions", "catalogs").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("nodedrivers").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("kontainerdrivers").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("podsecuritypolicytemplates").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("nodetemplates").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("multiclusterapps", "globaldnses", "globaldnsproviders", "clustertemplaterevisions", "clustertemplates").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("rkek8ssystemimages").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("rkek8sserviceoptions").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("rkeaddons").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("cisconfigs").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("cisbenchmarkversions", "clusterscans").verbs("get", "list", "watch").
+		addRule().apiGroups("management.cattle.io").resources("etcdbackups").verbs("get", "list", "watch").
+		addRule().apiGroups("*").resources("secrets").verbs("get", "list", "watch")
 
 	// TODO user should be dynamically authorized to only see herself
 	// TODO enable when groups are "in". they need to be self-service
