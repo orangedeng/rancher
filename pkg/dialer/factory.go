@@ -22,6 +22,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+// pandaria
+const (
+	ClusterDirectAccessKey = "management.cattle.io/direct-access"
+)
+
 func NewFactory(apiContext *config.ScaledContext) (*Factory, error) {
 	authorizer := tunnelserver.NewAuthorizer(apiContext)
 	tunneler := tunnelserver.NewTunnelServer(authorizer)
@@ -138,6 +143,11 @@ func (f *Factory) clusterDialer(clusterName, address string) (dialer.Dialer, err
 
 	if cluster.Spec.Internal {
 		// For local (embedded, or import) we just assume we can connect directly
+		return native()
+	}
+
+	// pandaria
+	if directAccess, _ := cluster.Annotations[ClusterDirectAccessKey]; directAccess != "" {
 		return native()
 	}
 

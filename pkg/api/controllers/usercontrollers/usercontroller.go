@@ -20,6 +20,8 @@ import (
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	"github.com/rancher/rancher/pkg/dialer"
 )
 
 var (
@@ -89,6 +91,11 @@ func (u *userControllersController) sync(key string, cluster *v3.Cluster) (runti
 			return nil, err
 		}
 	}
+	// pandaria
+	if cluster != nil {
+		return u.ensureClusterDialer(cluster)
+	}
+
 	if key == all {
 		return nil, u.setPeers(nil)
 	}
@@ -186,4 +193,34 @@ func (u *userControllersController) cleanFinalizers(key string, cluster *v3.Clus
 	}
 
 	return nil
+}
+
+// pandaria
+func (u *userControllersController) ensureClusterDialer(cluster *v3.Cluster) (rtn *v3.Cluster, err error) {
+	if cluster == nil || cluster.DeletionTimestamp != nil {
+		return cluster, nil
+	}
+	amOwner := u.amOwner(u.peers, cluster)
+	spec, ok1 := cluster.Annotations[dialer.ClusterDirectAccessKey]
+	status, ok2 := cluster.Labels[dialer.ClusterDirectAccessKey]
+	if ok1 == ok2 || spec == status {
+		return cluster, nil
+	}
+	if amOwner {
+		cluster = cluster.DeepCopy()
+		if !ok1 || spec == "" {
+			delete(cluster.Annotations, dialer.ClusterDirectAccessKey)
+			delete(cluster.Labels, dialer.ClusterDirectAccessKey)
+		} else {
+			cluster.Labels[dialer.ClusterDirectAccessKey] = spec
+		}
+		defer func() {
+			rtn, err = u.clusters.Update(cluster)
+		}()
+	}
+	logrus.Infof("restarting cluster %s controller", cluster.Name)
+	u.manager.Stop(cluster)
+	u.manager.Start(u.ctx, cluster, amOwner)
+	logrus.Infof("restart cluster %s controller completed", cluster.Name)
+	return cluster, nil
 }
