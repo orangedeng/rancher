@@ -262,7 +262,7 @@ metadata:
     graph: request-duration-p50-top10 
     source: rancher-istio
 spec:
-  expression: topk(10, histogram_quantile(0.50, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace))) 
+  expression: topk(10, histogram_quantile(0.50, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)) or (histogram_quantile(0.50, sum(irate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)))/1000) 
   legendFormat: '[[destination_service_name]].[[destination_service_namespace]]' 
   description: the server request duration that quantile is 0.5 
 ---
@@ -278,7 +278,7 @@ metadata:
     graph: request-duration-p90-top10 
     source: rancher-istio
 spec:
-  expression: topk(10, histogram_quantile(0.90, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace))) 
+  expression: topk(10, histogram_quantile(0.90, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)) or (histogram_quantile(0.90, sum(irate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)))/1000)
   legendFormat: '[[destination_service_name]].[[destination_service_namespace]]' 
   description: the server request duration that quantile is 0.9 
 ---
@@ -294,7 +294,7 @@ metadata:
     graph: request-duration-p99-top10 
     source: rancher-istio
 spec:
-  expression: topk(10, histogram_quantile(0.99, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace))) 
+  expression: topk(10, histogram_quantile(0.99, sum(irate(istio_request_duration_seconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)) or (histogram_quantile(0.99, sum(irate(istio_request_duration_milliseconds_bucket{reporter="destination", destination_service_namespace=~"$namespace"}[1m])) by (le, destination_service_name, destination_service_namespace)))/1000) 
   legendFormat: '[[destination_service_name]].[[destination_service_namespace]]' 
   description: the server request duration that quantile is 0.99 
 ---
