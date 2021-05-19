@@ -168,7 +168,7 @@ func generateExpectedF5Services(targets map[string]string) (map[string]f5Service
 func generateF5Service(name string, port string, workloadID string) (f5Service, error) {
 	p, err := strconv.Atoi(port)
 	if err != nil {
-		logrus.Error("Convert port string failed: %v", err)
+		logrus.Errorf("Convert port string failed: %v", err)
 		return f5Service{}, err
 	}
 	wids := []string{workloadID}
