@@ -110,7 +110,8 @@ func (m *Manager) traverseAndUpdate(helm *helmlib.Helm, commit string, cmt *Cata
 		var versions []v3.TemplateVersionSpec
 		for _, version := range metadata {
 			v := v3.TemplateVersionSpec{
-				Version: strings.ToLower(version.Version),
+				Version:     strings.ToLower(version.Version),
+				HelmVersion: version.HelmVersion,
 			}
 
 			files, err := helm.FetchLocalFiles(version)

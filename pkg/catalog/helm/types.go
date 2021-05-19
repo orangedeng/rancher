@@ -27,4 +27,5 @@ type ChartMetadata struct {
 	Description string   `json:"description,omitempty" yaml:"description,omitempty"`
 	Keywords    []string `json:"keywords,omitempty" yaml:"keywords,omitempty"`
 	Icon        string   `json:"icon,omitempty" yaml:"icon,omitempty"`
+	HelmVersion string   `json:"helmVersion,omitempty" yaml:"helmVersion,omitempty"`
 }

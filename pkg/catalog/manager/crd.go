@@ -5,7 +5,9 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
+	"github.com/rancher/norman/types/slice"
 	"github.com/rancher/rancher/pkg/catalog/utils"
+	"github.com/rancher/rancher/pkg/controllers/user/helm/common"
 	v3 "github.com/rancher/types/apis/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +90,11 @@ func (m *Manager) updateTemplate(template *v3.CatalogTemplate, toUpdate v3.Catal
 				TemplateNameLabel: template.Name,
 			}
 			toCreate.Spec = templateVersion.Spec
-			toCreate.Status = v3.TemplateVersionStatus{HelmVersion: template.Status.HelmVersion}
+			helmVersion := templateVersion.Spec.HelmVersion
+			if !slice.ContainsString([]string{common.HelmV2, common.HelmV3}, helmVersion) {
+				helmVersion = template.Status.HelmVersion
+			}
+			toCreate.Status = v3.TemplateVersionStatus{HelmVersion: helmVersion}
 			logrus.Debugf("Creating templateVersion %v", toCreate.Name)
 			if _, err := m.templateVersionClient.Create(toCreate); err != nil {
 				return err
@@ -168,7 +174,13 @@ func (m *Manager) createTemplateVersions(catalogName string, versionsSpec []v3.T
 	for _, spec := range versionsSpec {
 		templateVersion := &v3.CatalogTemplateVersion{}
 		templateVersion.Spec = spec
-		templateVersion.Status = v3.TemplateVersionStatus{HelmVersion: template.Status.HelmVersion}
+
+		helmVersion := templateVersion.Spec.HelmVersion
+		if !slice.ContainsString([]string{common.HelmV2, common.HelmV3}, helmVersion) {
+			helmVersion = template.Status.HelmVersion
+		}
+
+		templateVersion.Status = v3.TemplateVersionStatus{HelmVersion: helmVersion}
 		templateVersion.Name = getValidTemplateNameWithVersion(template.Name, spec.Version)
 		templateVersion.Namespace = template.Namespace
 		templateVersion.Labels = map[string]string{
