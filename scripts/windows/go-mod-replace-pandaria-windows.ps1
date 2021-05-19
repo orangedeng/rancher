@@ -12,7 +12,7 @@ $REQUIRE=@("github.com/vgough/grpc-proxy@v0.0.0-20191207203309-13d1aa04a5a6",
 "github.com/F5Networks/k8s-bigip-ctlr@v0.0.0-20201204153954-a3df363ee660")
 
 $REPLACE=@("github.com/Azure/azure-sdk-for-go=github.com/Azure/azure-sdk-for-go@v36.2.0+incompatible",
-"github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20210304054958-15407f3e8211",
+"github.com/rancher/types=github.com/cnrancher/pandaria-types@v0.0.0-20210519094556-cf3f7a884b8b",
 "github.com/rancher/kontainer-engine=github.com/cnrancher/kontainer-engine@v0.0.4-dev.0.20210125041539-ea6f91ce0d09",
 "github.com/rancher/prometheus-auth/pkg/data=github.com/cnrancher/prometheus-auth/pkg/data@v0.0.0-20201013075525-c015fa82fdd7",
 "github.com/rancher/prometheus-auth/pkg/prom=github.com/cnrancher/prometheus-auth/pkg/prom@v0.0.0-20201013075525-c015fa82fdd7",
