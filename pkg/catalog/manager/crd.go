@@ -73,11 +73,17 @@ func (m *Manager) updateTemplate(template *v3.CatalogTemplate, toUpdate v3.Catal
 	for _, toUpdateVer := range toUpdate.Spec.Versions {
 		templateVersion := &v3.CatalogTemplateVersion{}
 		templateVersion.Spec = toUpdateVer
+		helmVersion := templateVersion.Spec.HelmVersion
+		if !slice.ContainsString([]string{common.HelmV2, common.HelmV3}, helmVersion) {
+			helmVersion = template.Status.HelmVersion
+		}
+		expectedStatus := v3.TemplateVersionStatus{HelmVersion: helmVersion}
 		if tv, ok := tvByVersion[toUpdateVer.Version]; ok {
-			if !reflect.DeepEqual(tv.Spec, toUpdateVer) {
+			if !reflect.DeepEqual(tv.Spec, toUpdateVer) || !reflect.DeepEqual(tv.Status, expectedStatus) {
 				logrus.Debugf("Updating templateVersion %v", tv.Name)
 				newObject := tv.DeepCopy()
 				newObject.Spec = templateVersion.Spec
+				newObject.Status = expectedStatus
 				if _, err := m.templateVersionClient.Update(newObject); err != nil {
 					return err
 				}
@@ -90,11 +96,7 @@ func (m *Manager) updateTemplate(template *v3.CatalogTemplate, toUpdate v3.Catal
 				TemplateNameLabel: template.Name,
 			}
 			toCreate.Spec = templateVersion.Spec
-			helmVersion := templateVersion.Spec.HelmVersion
-			if !slice.ContainsString([]string{common.HelmV2, common.HelmV3}, helmVersion) {
-				helmVersion = template.Status.HelmVersion
-			}
-			toCreate.Status = v3.TemplateVersionStatus{HelmVersion: helmVersion}
+			toCreate.Status = expectedStatus
 			logrus.Debugf("Creating templateVersion %v", toCreate.Name)
 			if _, err := m.templateVersionClient.Create(toCreate); err != nil {
 				return err
