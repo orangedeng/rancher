@@ -5124,8 +5124,8 @@ metadata:
     metric: gpu-memory-usage-percent
     source: rancher-monitoring
 spec:
-  expression: sum(dcgm_fb_used) 
-    / sum(dcgm_fb_free + dcgm_fb_used)
+  expression: sum(DCGM_FI_DEV_FB_USED) 
+    / sum(DCGM_FI_DEV_FB_FREE + DCGM_FI_DEV_FB_USED)
   legendFormat: GPU Memory usage
   description: cluster gpu memory usage percent
 ---
@@ -5141,8 +5141,8 @@ metadata:
     metric: gpu-memory-usage-percent
     source: rancher-monitoring
 spec:
-  expression: sum(dcgm_fb_used) by (instance)
-    / sum(dcgm_fb_free + dcgm_fb_used) by (instance)
+  expression: sum(DCGM_FI_DEV_FB_USED) by (instance)
+    / sum(DCGM_FI_DEV_FB_FREE + DCGM_FI_DEV_FB_USED) by (instance)
   legendFormat: '[[instance]]'
   description: cluster gpu memory usage percent
 ---
@@ -5158,8 +5158,8 @@ metadata:
     metric: gpu-memory-usage-percent
     source: rancher-monitoring
 spec:
-  expression: sum(dcgm_fb_used{instance=~"$instance"}) by (gpu)
-    / sum(dcgm_fb_used{instance=~"$instance"} + dcgm_fb_free{instance=~"$instance"}) by (gpu)
+  expression: sum(DCGM_FI_DEV_FB_USED{instance=~"$instance"}) by (gpu)
+    / sum(DCGM_FI_DEV_FB_USED{instance=~"$instance"} + DCGM_FI_DEV_FB_FREE{instance=~"$instance"}) by (gpu)
   legendFormat: GPU([[gpu]])
   description: node gpu memory usage percent
 ---
@@ -5175,8 +5175,8 @@ metadata:
     metric: gpu-memory-usage-percent
     source: rancher-monitoring
 spec:
-  expression: sum(dcgm_fb_used{instance=~"$instance"}) by (gpu)
-    / sum(dcgm_fb_used{instance=~"$instance"} + dcgm_fb_free{instance=~"$instance"}) by (gpu)
+  expression: sum(DCGM_FI_DEV_FB_USED{instance=~"$instance"}) by (gpu)
+    / sum(DCGM_FI_DEV_FB_USED{instance=~"$instance"} + DCGM_FI_DEV_FB_FREE{instance=~"$instance"}) by (gpu)
   legendFormat: GPU([[gpu]])
   description: node gpu memory usage percent
 ---
