@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/rancher/norman/store/proxy"
 	"github.com/rancher/norman/store/transform"
 	"github.com/rancher/norman/types"
+	cacheStore "github.com/rancher/rancher/pkg/api/store/cache"
 	"github.com/rancher/rancher/pkg/catalog/manager"
 	catUtil "github.com/rancher/rancher/pkg/catalog/utils"
 	hcommon "github.com/rancher/rancher/pkg/controllers/user/helm/common"
@@ -30,14 +32,30 @@ func GetTemplateStore(ctx context.Context, managementContext *config.ScaledConte
 		CatalogManager:               managementContext.CatalogManager,
 	}
 
+	resSetting := settings.ManagementCacheResource.Get()
+	schemaIDs := strings.Split(resSetting, ",")
+	var wrapCacheStore bool = false
+	for _, id := range schemaIDs {
+		if strings.EqualFold(id, client.TemplateType) {
+			wrapCacheStore = true
+			break
+		}
+	}
+
+	baseStore := proxy.NewProxyStore(ctx, managementContext.ClientGetter,
+		config.ManagementStorageContext,
+		[]string{"apis"},
+		"management.cattle.io",
+		"v3",
+		"CatalogTemplate",
+		"catalogtemplates")
+
+	if wrapCacheStore && strings.EqualFold(settings.EnableManagementAPICache.Get(), "true") {
+		baseStore = cacheStore.Wrap(baseStore, managementContext, "CatalogTemplates")
+	}
+
 	s := &transform.Store{
-		Store: proxy.NewProxyStore(ctx, managementContext.ClientGetter,
-			config.ManagementStorageContext,
-			[]string{"apis"},
-			"management.cattle.io",
-			"v3",
-			"CatalogTemplate",
-			"catalogtemplates"),
+		Store: baseStore,
 		Transformer: func(apiContext *types.APIContext, schema *types.Schema, data map[string]interface{}, opt *types.QueryOptions) (map[string]interface{}, error) {
 			data[client.CatalogTemplateFieldVersionLinks] = ts.extractVersionLinks(apiContext, data)
 			return data, nil

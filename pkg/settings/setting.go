@@ -94,6 +94,9 @@ var (
 	LeaderEndpoint                    = NewSetting("leader-endpoint", "")                                                // PANDARIA: show rancher leader endpoint
 	MgmtUserControllersRESTTimeout    = NewSetting("mgmt-user-controllers-rest-timeout", "45s")                          // PANDARIA
 	DisablePasswordEncrypt            = NewSetting("disable-password-encrypt", "false")                                  // PANDARIA
+
+	EnableManagementAPICache = NewSetting("enable-management-api-cache", "true")                                                                                             // PANDARIA
+	ManagementCacheResource  = NewSetting("management-cache-resource", "projectRoleTemplateBinding,clusterRoleTemplateBinding,user,node,project,globalRoleBinding,template") //PANDARIA
 )
 
 func init() {

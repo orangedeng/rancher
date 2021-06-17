@@ -3,6 +3,7 @@ package managementstored
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rancher/norman/store/crd"
@@ -42,6 +43,7 @@ import (
 	"github.com/rancher/rancher/pkg/api/customization/secret"
 	"github.com/rancher/rancher/pkg/api/customization/setting"
 	appStore "github.com/rancher/rancher/pkg/api/store/app"
+	cacheStore "github.com/rancher/rancher/pkg/api/store/cache"
 	catalogStore "github.com/rancher/rancher/pkg/api/store/catalog"
 	"github.com/rancher/rancher/pkg/api/store/cert"
 	"github.com/rancher/rancher/pkg/api/store/cluster"
@@ -69,6 +71,7 @@ import (
 	"github.com/rancher/rancher/pkg/namespace"
 	"github.com/rancher/rancher/pkg/nodeconfig"
 	sourcecodeproviders "github.com/rancher/rancher/pkg/pipeline/providers"
+	"github.com/rancher/rancher/pkg/settings"
 	managementschema "github.com/rancher/types/apis/management.cattle.io/v3/schema"
 	pandariaschema "github.com/rancher/types/apis/mgt.pandaria.io/v3/schema"
 	projectschema "github.com/rancher/types/apis/project.cattle.io/v3/schema"
@@ -76,6 +79,7 @@ import (
 	pandariaclient "github.com/rancher/types/client/mgt/v3"
 	projectclient "github.com/rancher/types/client/project/v3"
 	"github.com/rancher/types/config"
+	"github.com/sirupsen/logrus"
 )
 
 func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager *clustermanager.Manager,
@@ -209,6 +213,11 @@ func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager
 		return err
 	}
 
+	// PANDARIA
+	if strings.EqualFold(settings.EnableManagementAPICache.Get(), "true") {
+		wrapCacheStore(ctx, apiContext, schemas, &managementschema.Version)
+	}
+
 	principals.Schema(ctx, apiContext, schemas)
 	providers.SetupAuthConfig(ctx, apiContext, schemas)
 	authn.SetUserStore(schemas.Schema(&managementschema.Version, client.UserType), apiContext)
@@ -221,6 +230,27 @@ func Setup(ctx context.Context, apiContext *config.ScaledContext, clusterManager
 	multiclusterapp.SetMemberStore(ctx, schemas.Schema(&managementschema.Version, client.MultiClusterAppType), apiContext)
 	GlobalDNSProvidersPwdWrap(schemas, apiContext, localClusterEnabled)
 
+	return nil
+}
+
+// PANDARIA
+func wrapCacheStore(ctx context.Context, management *config.ScaledContext, schemas *types.Schemas, version *types.APIVersion) error {
+	resSetting := settings.ManagementCacheResource.Get()
+	schemaIDs := strings.Split(resSetting, ",")
+
+	var schemasToWrap []*types.Schema
+	for _, schemaID := range schemaIDs {
+		s := schemas.Schema(version, schemaID)
+		if s == nil {
+			logrus.Errorf("Can not find schema %s , skip wrap cache store.", schemaID)
+			continue
+		}
+		schemasToWrap = append(schemasToWrap, s)
+	}
+
+	for _, schema := range schemasToWrap {
+		schema.Store = cacheStore.Wrap(schema.Store, management, "")
+	}
 	return nil
 }
 
