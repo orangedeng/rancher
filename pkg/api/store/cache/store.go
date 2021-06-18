@@ -6,11 +6,13 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rancher/norman/types"
 	"github.com/rancher/norman/types/convert"
 	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/types/config"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -85,6 +87,7 @@ func (s *Store) List(apiContext *types.APIContext, schema *types.Schema, opt *ty
 
 func (s *Store) listResourceDataFromCache(ns string, schema *types.Schema) ([]unstructured.Unstructured, error) {
 	var nsInput []reflect.Value
+	start := time.Now()
 	nsInput = append(nsInput, reflect.ValueOf(ns))
 	resourceMethodName := schema.CodeNamePlural
 	if s.ResourceMethodName != "" {
@@ -135,6 +138,7 @@ func (s *Store) listResourceDataFromCache(ns string, schema *types.Schema) ([]un
 		unstructured.UnstructuredJSONScheme.Decode(data, nil, &result)
 		resultItems = append(resultItems, result)
 	}
+	logrus.Tracef("LIST Cache: %v, %v", time.Now().Sub(start), schema.PluralName)
 	return resultItems, nil
 }
 
