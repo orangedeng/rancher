@@ -48,7 +48,19 @@ type Factory struct {
 
 func (f *Factory) ClusterDialer(clusterName string) (dialer.Dialer, error) {
 	return func(network, address string) (net.Conn, error) {
-		d, err := f.clusterDialer(clusterName, address)
+		//pandaria
+		d, err := f.clusterDialer(clusterName, address, false)
+		if err != nil {
+			return nil, err
+		}
+		return d(network, address)
+	}, nil
+}
+
+//pandaria
+func (f *Factory) ClusterDirectDialer(clusterName string) (dialer.Dialer, error) {
+	return func(network, address string) (net.Conn, error) {
+		d, err := f.clusterDialer(clusterName, address, true)
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +147,7 @@ func (f *Factory) translateClusterAddress(cluster *v3.Cluster, clusterHostPort, 
 	return address
 }
 
-func (f *Factory) clusterDialer(clusterName, address string) (dialer.Dialer, error) {
+func (f *Factory) clusterDialer(clusterName, address string, usingDirect bool) (dialer.Dialer, error) {
 	cluster, err := f.clusterLister.Get("", clusterName)
 	if err != nil {
 		return nil, err
@@ -147,7 +159,7 @@ func (f *Factory) clusterDialer(clusterName, address string) (dialer.Dialer, err
 	}
 
 	// pandaria
-	if directAccess, _ := cluster.Annotations[ClusterDirectAccessKey]; directAccess != "" {
+	if directAccess, _ := cluster.Annotations[ClusterDirectAccessKey]; usingDirect && directAccess != "" {
 		return native()
 	}
 

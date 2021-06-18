@@ -18,6 +18,7 @@ import (
 	"github.com/rancher/norman/httperror"
 	"github.com/rancher/norman/types"
 	clusterController "github.com/rancher/rancher/pkg/controllers/user"
+	pkgdialer "github.com/rancher/rancher/pkg/dialer"
 	"github.com/rancher/rancher/pkg/rbac"
 	"github.com/rancher/rancher/pkg/settings"
 	"github.com/rancher/rke/pki/cert"
@@ -287,7 +288,14 @@ func ToRESTConfig(cluster *v3.Cluster, context *config.ScaledContext) (*rest.Con
 		return nil, err
 	}
 
-	clusterDialer, err := context.Dialer.ClusterDialer(cluster.Name)
+	//pandaria
+	var clusterDialer dialer.Dialer
+
+	if factory, ok := context.Dialer.(*pkgdialer.Factory); ok {
+		clusterDialer, err = factory.ClusterDirectDialer(cluster.Name)
+	} else {
+		clusterDialer, err = context.Dialer.ClusterDialer(cluster.Name)
+	}
 	if err != nil {
 		return nil, err
 	}
